@@ -32,20 +32,6 @@ int pos = 0;
 int MAX_VALUE = 2000;
 int MIN_VALUE = 300;
 
-// Define motor pins
-#define PWMA 12    //Motor A PWM
-#define DIRA1 34
-#define DIRA2 35  //Motor A Direction
-#define PWMB 8    //Motor B PWM
-#define DIRB1 37
-#define DIRB2 36  //Motor B Direction
-#define PWMC 6   //Motor C PWM
-#define DIRC1 43
-#define DIRC2 42  //Motor C Direction
-#define PWMD 5    //Motor D PWM
-#define DIRD1 A4  //26  
-#define DIRD2 A5  //27  //Motor D Direction
-
 #define MOTORA_FORWARD(pwm)    do{digitalWrite(DIRA1,LOW); digitalWrite(DIRA2,HIGH);analogWrite(PWMA,pwm);}while(0)
 #define MOTORA_STOP(x)         do{digitalWrite(DIRA1,LOW); digitalWrite(DIRA2,LOW); analogWrite(PWMA,0);}while(0)
 #define MOTORA_BACKOFF(pwm)    do{digitalWrite(DIRA1,HIGH);digitalWrite(DIRA2,LOW); analogWrite(PWMA,pwm);}while(0)
@@ -113,10 +99,10 @@ const double EPRB = 660;//转速比：1：660
 const double EPRC = 660;//转速比：1：660
 const double EPRD = 660;//转速比：1：660
 
-const int pwm1 = 12; const int dir1A = 34; const int dir1B = 35; const int encoder1A = 18; const int encoder1B = 31;
-const int pwm2 = 8; const int dir2A = 37; const int dir2B = 36; const int encoder2A = 19; const int encoder2B = 38;
-const int pwm3 = 6; const int dir3A = 43; const int dir3B = 42; const int encoder3A = 3; const int encoder3B = 49;
-const int pwm4 = 5; const int dir4A = A4; const int dir4B = A5; const int encoder4A = 2; const int encoder4B = A1;
+const int pwm1 = 12; const int dir1A = 34; const int dir1B = 35; const int encoder1A = 18; const int encoder1B = 31; // A M1
+const int pwm2 = 8; const int dir2A = 37; const int dir2B = 36; const int encoder2A = 19; const int encoder2B = 38; // B M2
+const int pwm3 = 6; const int dir3A = 43; const int dir3B = 42; const int encoder3A = 3; const int encoder3B = 49; // C M3
+const int pwm4 = 5; const int dir4A = A4; const int dir4B = A5; const int encoder4A = 2; const int encoder4B = A1; // D M4
 
 const double pi = 3.14159265358979323846;
 
@@ -129,7 +115,7 @@ MovingAverage filter1; MovingAverage filter2; MovingAverage filter3; MovingAvera
 DCMotor motor1(pwm1, dir1A, dir1B, encoder1A, encoder1B); DCMotor motor2(pwm2, dir2A, dir2B, encoder2A, encoder2B);
 DCMotor motor3(pwm3, dir3A, dir3B, encoder3A, encoder3B); DCMotor motor4(pwm4, dir4A, dir4B, encoder4A, encoder4B);
 
-#endif // DCMOTOR_HPP
+#endif 
 
 
 DCMotor::DCMotor(int pwm, int dirA, int dirB, int encoderA, int encoderB) : 
@@ -181,6 +167,8 @@ void DCMotor::setDirection(int dir) {
         digitalWrite(dirBPin, LOW);
     }
 }
+
+// encoder interrupt cnt
 void DCMotor::encoderSubroutineA() {
     if (digitalRead(encoderAPin)){
         if (digitalRead(encoderBPin)){
@@ -219,97 +207,6 @@ void DCMotor::encoderSubroutineB() {
 }
 
 
-
-////////////////////////////////////////////////////////////
-void AUTO_Control();
-void Alignment();
-void Rotation();
-void MoveAndRotate();
-void Measurement();
-void Parking();
-void DataUpdate();
-void calibrate();
-
-
-  // sonar
-  #define trigPinL 29
-  #define trigPinR 25
-  #define echoPinL 30
-  #define echoPinR 28
-  long L_sonar_dist,R_sonar_dist;
-  int done = 1;
-  unsigned long start_time = 0;
-  int alignemnt_cnt = 0;
-
-  //gyro
-  MPU6050 mpu(Wire);
-  float pitch, roll, yaw, angle_set;
-
-  //enum class for the state machine
-  enum class MOVEMENTTYPE{
-    LOCATING,
-    NEXTSTAGE_TRANSITION,
-    ROTATING1,
-    ROTATING2,
-    ROTATING3,
-    END_MOVEMENT
-  };
-  enum class TASKTYPE{
-    INIT,
-    ALIGNMENT,
-    MOVEANDROTATE,
-    MEASUREMENT,
-    PARKING,
-    END_STATE
-  };
-  enum class PRAKINGSTATE{
-    FORWARD,
-    TRANSIT,
-    ROTATE,
-    END_PARKING
-  };
-  TASKTYPE STATE = TASKTYPE::INIT;
-  MOVEMENTTYPE MOVEMENT = MOVEMENTTYPE::LOCATING;
-  PRAKINGSTATE PARKING = PRAKINGSTATE::FORWARD;
-
-  // alignment
-  int flag = 0;
-  int locating_cnt = 0;
-
-  // light
-  #define TOL   50           // tolerance for adc different, avoid oscillation
-  #define K   5              // Step size
-  #define LightPinL A8
-  #define LightPinR A9
-  //variables for light intensity to ADC reading equations 
-  int int_adc0, int_adc0_m, int_adc0_c;
-  int int_adc1, int_adc1_m, int_adc1_c;
-  int int_left, int_right, avg_light_intensity;
-
-  //measurment
-  float distance_to_wall_buf, angle_of_vehicle_buf, distance_to_wall, angle_of_vehicle;
-  int cnt = 0;
-
-  //parking
-  float max_light_intensity = 0;
-  float pitch_at_max_light_intensity = 0;
-
-  // PWM
-  uint8_t motion_mode;
-  uint8_t  motion_last_mode;
-  int Motor_PWM = 0;
-  #define MOTION_MODE_ADVANCE 0
-  #define MOTION_MODE_BACK 1
-  #define MOTION_MODE_LEFT 2
-  #define MOTION_MODE_RIGHT 3
-  #define MOTION_MODE_ROTATE 4
-  #define MOTION_MODE_STOP 5
-  #define MOTION_MODE_ROTATE_CW 6
-  #define MOTION_MODE_ROTATE_CCW 7
-  #define MOTION_MODE_ROTATE_180 8
-  #define MOTION_MODE_ROTATE_90 9
-  #define MOTION_MODE_ROTATE_270 10
-
 void cmd_vel_cb(const geometry_msgs::Twist& vel_msg){ // x // y // z
     delay(10);
     motorPID1.outputSum = 0;
@@ -321,144 +218,18 @@ void cmd_vel_cb(const geometry_msgs::Twist& vel_msg){ // x // y // z
     set_eps1 = EPRA * mecanumDrive.wheelSpeeds[0] / 2 / pi; 
     set_eps2 = EPRB * mecanumDrive.wheelSpeeds[1] / 2 / pi; 
     set_eps3 = EPRC * mecanumDrive.wheelSpeeds[2] / 2 / pi; 
-    set_eps4 = EPRD * mecanumDrive.wheelSpeeds[3] / 2 / pi;
+    set_eps4 = EPRD * mecanumDrive.wheelSpeeds[3] / 2 / pi; 
 }
 
+int Motor_PWM;
+
+// Motor implementation
+// M1 ----- M2
+//  |       |
+//  |       |
+// M3 ----- M4
 
 
-/*
-  ABOVE BY GROUP C4-C
-*/
-////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////
-
-
-//    ↑A-----B↑
-//     |  ↑  |
-//     |  |  |
-//    ↑C-----D↑
-void BACK(uint8_t pwm_A, uint8_t pwm_B, uint8_t pwm_C, uint8_t pwm_D)
-{
-  MOTORA_BACKOFF(Motor_PWM); 
-  MOTORB_FORWARD(Motor_PWM);
-  MOTORC_BACKOFF(Motor_PWM); 
-  MOTORD_FORWARD(Motor_PWM);
-}
-
-//    ↓A-----B↓
-//     |  |  |
-//     |  ↓  |
-//    ↓C-----D↓
-void ADVANCE( )
-{
-  MOTORA_FORWARD(Motor_PWM); 
-  MOTORB_BACKOFF(Motor_PWM);
-  MOTORC_FORWARD(Motor_PWM); 
-  MOTORD_BACKOFF(Motor_PWM);
-}
-//    =A-----B↑
-//     |   ↖ |
-//     | ↖   |
-//    ↑C-----D=
-void LEFT_1( )
-{
-  MOTORA_STOP(Motor_PWM); 
-  MOTORB_FORWARD(Motor_PWM);
-  MOTORC_BACKOFF(Motor_PWM); 
-  MOTORD_STOP(Motor_PWM);
-}
-
-//    ↓A-----B↑
-//     |  ←  |
-//     |  ←  |
-//    ↑C-----D↓
-void RIGHT_2( )
-{
-  MOTORA_FORWARD(Motor_PWM); 
-  MOTORB_FORWARD(Motor_PWM);
-  MOTORC_BACKOFF(Motor_PWM); 
-  MOTORD_BACKOFF(Motor_PWM);
-}
-//    ↓A-----B=
-//     | ↙   |
-//     |   ↙ |
-//    =C-----D↓
-void LEFT_3( )
-{
-  MOTORA_FORWARD(Motor_PWM); 
-  MOTORB_STOP(Motor_PWM);
-  MOTORC_STOP(Motor_PWM); 
-  MOTORD_BACKOFF(Motor_PWM);
-}
-//    ↑A-----B=
-//     | ↗   |
-//     |   ↗ |
-//    =C-----D↑
-void RIGHT_1( )
-{
-  MOTORA_BACKOFF(Motor_PWM); 
-  MOTORB_STOP(Motor_PWM);
-  MOTORC_STOP(Motor_PWM); 
-  MOTORD_FORWARD(Motor_PWM);
-}
-//    ↑A-----B↓
-//     |  →  |
-//     |  →  |
-//    ↓C-----D↑
-void LEFT_2( )
-{
-  MOTORA_BACKOFF(Motor_PWM); 
-  MOTORB_BACKOFF(Motor_PWM);
-  MOTORC_FORWARD(Motor_PWM); 
-  MOTORD_FORWARD(Motor_PWM);
-}
-//    =A-----B↓
-//     |   ↘ |
-//     | ↘   |
-//    ↓C-----D=
-void RIGHT_3( )
-{
-  MOTORA_STOP(Motor_PWM); 
-  MOTORB_BACKOFF(Motor_PWM);
-  MOTORC_FORWARD(Motor_PWM); 
-  MOTORD_STOP(Motor_PWM);
-}
-
-//    ↑A-----B↓
-//     | ↗ ↘ |
-//     | ↖ ↙ |
-//    ↑C-----D↓
-void rotate_1( )  // CW
-{
-  MOTORA_BACKOFF(Motor_PWM); 
-  MOTORB_BACKOFF(Motor_PWM);
-  MOTORC_BACKOFF(Motor_PWM); 
-  MOTORD_BACKOFF(Motor_PWM);
-}
-
-//    ↓A-----B↑
-//     | ↙ ↖ |
-//     | ↘ ↗ |
-//    ↓C-----D↑
-void rotate_2( )  //CCW
-{
-  MOTORA_FORWARD(Motor_PWM);
-  MOTORB_FORWARD(Motor_PWM);
-  MOTORC_FORWARD(Motor_PWM);
-  MOTORD_FORWARD(Motor_PWM);
-}
-//    =A-----B=
-//     |  =  |
-//     |  =  |
-//    =C-----D=
-void STOP( )
-{
-  MOTORA_STOP(Motor_PWM);
-  MOTORB_STOP(Motor_PWM);
-  MOTORC_STOP(Motor_PWM);
-  MOTORD_STOP(Motor_PWM);
-}
 
 void UART_Control()
 {
@@ -596,18 +367,7 @@ void setup()
   display.display();
 
 
-////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////
-  /*
-    BELOW BY GROUP C4-C
-  */
-  pinMode(echoPinL, INPUT);
-  pinMode(trigPinL, OUTPUT);
-  pinMode(echoPinR, INPUT);
-  pinMode(trigPinR, OUTPUT);
 
-  calibrate();
 }
 
 
@@ -618,18 +378,6 @@ void setup()
   BELOW BY GROUP C4-C
 */
 void calibrate() {
-    Serial.println("*******************");
-    Serial.println("START AUTO_Control");
-    Serial.println("*******************");
-    Serial.println("Calibrating the sensors...");
-    int_adc0=analogRead(LightPinL);   // Left sensor at ambient light intensity
-    int_adc1=analogRead(LightPinR);   // Right sensor at ambient light intensity
-    delay(500);
-    int_adc0_c=analogRead(LightPinL);   // Left sensor at zero light intensity
-    int_adc1_c=analogRead(LightPinR);   // Right sensor at zero light intensity
-    // calculate the slope of light intensity to ADC reading equations  
-    int_adc0_m=(int_adc0-int_adc0_c)/100;
-    int_adc1_m=(int_adc1-int_adc1_c)/100;
     //calibrate the gyroscope
     Serial.begin(115200); 
     Wire.begin();
@@ -638,423 +386,37 @@ void calibrate() {
     Serial.println("............");
     delay(1000);         //delay 1000ms waiting for calibration of gyroscope to complete
     Serial.println("Done\n*******************");
-    STATE = TASKTYPE::ALIGNMENT;
 }
 
-void get_gyro() {
-    //once call Dataupdate() update the gyroscope info 
-    mpu.update();
-    pitch = mpu.getAngleX();
-    roll = mpu.getAngleY();
-    yaw = mpu.getAngleZ();
-}
+// void get_gyro() {
+//     //once call Dataupdate() update the gyroscope info 
+//     mpu.update();
+//     pitch = mpu.getAngleX();
+//     roll = mpu.getAngleY();
+//     yaw = mpu.getAngleZ();
+// }
 
-void get_distance() {
-    long durationL;
-    long durationR;
-    if (done) {
-        // reset start_time only if the distance has been measured 
-        // in the last invocation of the method
-        done = 0;
-        start_time = millis();
-        digitalWrite(trigPinL, LOW);
-        digitalWrite(trigPinR, LOW);
-    }
+void servo_ctrl(){
+      // pan = constrain(pan, servo_min, servo_max);
+    // tilt = constrain(tilt, servo_min, servo_max);
     
-    if (millis() > start_time + 2) { 
-        digitalWrite(trigPinL, HIGH);
-        digitalWrite(trigPinR, HIGH);
-    }
-    
-    if (millis() > start_time + 10) {
-        digitalWrite(trigPinL, LOW);
-        durationL = pulseIn(echoPinL, HIGH);
-        L_sonar_dist = (durationL / 2.0) / 29.1;
-        digitalWrite(trigPinR, LOW);
-        durationR = pulseIn(echoPinR, HIGH);
-        R_sonar_dist = (durationR / 2.0) / 29.1 - 1.1;
-        done = 1;
-    }
-
+    //send signal to servo
+    // servo_pan.write(pan);
+    // servo_tilt.write(tilt);
 }
-
-void get_light() {
-  // calculate the light intensity of the sensors
-  // in the range of [0, 100]
-  int_left=(analogRead(LightPinL)-int_adc0_c)/int_adc0_m;
-  int_right=(analogRead(LightPinR)-int_adc1_c)/int_adc1_m;
-  avg_light_intensity = (int_left + int_right) / 2;
-
-
-}
-
-//TODO
-void Alignment(){
-  
-    DataUpdate();
-    if (alignemnt_cnt >= 5){
-      STOP();
-      delay(2000);
-      return;
-    }
-    if (abs(L_sonar_dist - R_sonar_dist) < 1.4){
-      STOP();
-      if (flag == 0)
-        alignemnt_cnt = 0;
-      flag = 1;
-      Serial.println("Alignment done!");
-      alignemnt_cnt++;
-      if (alignemnt_cnt >= 5){
-        STOP();
-        STATE = TASKTYPE::MOVEANDROTATE;
-        return;
-      }
-    }
-    else if (L_sonar_dist - R_sonar_dist > 1.4){
-        flag = 0;
-        Motor_PWM = 300;
-        rotate_2();
-    }
-    else if (L_sonar_dist - R_sonar_dist < -1.4){
-        flag = 0;
-        Motor_PWM = 300;
-        rotate_1();
-    }
-
-    delay(150);
-    STOP();
-}
-
-void Rotation(){
-  if (avg_light_intensity > max_light_intensity){
-    max_light_intensity = avg_light_intensity;
-    pitch_at_max_light_intensity = pitch;
-  }
-  if (abs(pitch - angle_set) > 0.5){
-    if (pitch < angle_set){
-      Motor_PWM = 500;
-      rotate_2();
-      delay(100);
-      STOP();
-      }
-    else if (pitch > angle_set){
-      Motor_PWM = 500;
-      rotate_1();
-      delay(100);
-      STOP();
-      }
-  }
-  else 
-    STOP();
-}
-
-
-/**   *@TODO: PWM control   **/
-void MoveAndRotate(){
-  DataUpdate();
-  switch (MOVEMENT)
-  {
-  case MOVEMENTTYPE::LOCATING:
-    Serial.println("MOVEMENT: LOCATING");
-    Serial.println(locating_cnt);
-    if (locating_cnt >= 5){
-      STOP();
-      MOVEMENT = MOVEMENTTYPE::NEXTSTAGE_TRANSITION;
-      return;
-      }
-    if (((24.0 < L_sonar_dist) && (L_sonar_dist < 26.0)) && ((24.5 < R_sonar_dist) && (R_sonar_dist < 25.5))){
-      STOP();
-      Serial.println("Locating done!");
-      locating_cnt++;
-    }
-    else if ((L_sonar_dist > 26.0) && (R_sonar_dist > 26.0)){
-      locating_cnt = 0;
-      if ((L_sonar_dist > 35.0) && (R_sonar_dist > 35.0)){
-        Motor_PWM = 1200;
-        ADVANCE(230, 230, 230, 230);
-        }
-      else {
-        Motor_PWM = 300;
-        ADVANCE(230, 230, 230, 230);
-        }
-    }
-    else if ((L_sonar_dist < 24.0) && (R_sonar_dist < 24.0)){
-      locating_cnt = 0;
-      Motor_PWM = 300;
-      BACK(230, 230, 230, 230);
-    }
-    else if (L_sonar_dist - R_sonar_dist > 1.3){
-      locating_cnt = 0;
-      Motor_PWM = 300;
-      rotate_2(230, 230, 230, 230);
-      delay(200);
-      STOP();
-    }
-    else if (L_sonar_dist - R_sonar_dist < -1.3){
-      locating_cnt = 0;
-      Motor_PWM = 300;
-      rotate_1(230, 230, 230, 230);
-      delay(200);
-      STOP();
-    }
-    break;
-
-  case MOVEMENTTYPE::NEXTSTAGE_TRANSITION:
-    Serial.println("MOVEMENT: NEXTSTAGE_TRANSITION");
-    STOP();
-    delay(2000);
-    MOVEMENT = MOVEMENTTYPE::ROTATING1;
-    break;
-
-  /**    @TODO: calibrate the light sensors during the rotation   **/ 
-  case MOVEMENTTYPE::ROTATING1:
-    Serial.println("MOVEMENT: ROTATING1");
-    // CW 90
-    angle_set = pitch-90.0;
-    Motor_PWM = 750;
-    Rotation();
-    if (abs(pitch - angle_set) < 1.0){
-      STOP();
-      delay(2000);
-      MOVEMENT = MOVEMENTTYPE::ROTATING2;
-    }
-    break;
-  case MOVEMENTTYPE::ROTATING2:
-    Serial.println("MOVEMENT: ROTATING2");
-    // CCW 270
-    angle_set = pitch+270.0;
-    Motor_PWM = 750;
-    Rotation();
-    if (abs(pitch - angle_set) < 1.0){
-      STOP();
-      delay(2000);
-      // ambient light intensity as dark intensity
-      int_adc0_c=analogRead(LightPinL);   // Left sensor at zero light intensity
-      int_adc1_c=analogRead(LightPinR);   // Right sensor at zero light intensity
-      MOVEMENT = MOVEMENTTYPE::ROTATING3;
-    }
-    break;
-  case MOVEMENTTYPE::ROTATING3:
-    Serial.println("MOVEMENT: ROTATING3");
-    // CW 180
-    angle_set = pitch-180.0;
-    Motor_PWM = 750;
-    Rotation();
-    if (abs(pitch - angle_set) < 1.0){
-      STOP();
-      delay(2000);
-      // light intensity as ambient light intensity
-      int_adc0=analogRead(LightPinL);   // Left sensor at ambient light intensity
-      int_adc1=analogRead(LightPinR);   // Right sensor at ambient light intensity
-      int_adc0_m=(int_adc0-int_adc0_c)/100;
-      int_adc1_m=(int_adc1-int_adc1_c)/100;
-      MOVEMENT = MOVEMENTTYPE::END_MOVEMENT;
-    }
-    break;  
-  case MOVEMENTTYPE::END_MOVEMENT:
-    Serial.println("MOVEMENT: END_MOVEMENT");
-    STOP();
-    STATE = TASKTYPE::MEASUREMENT;
-    break;
-  default:
-    break;
-  }
-}
-
-void Measurement(){
-  if (cnt == 10){
-    delay(2000); // wait 2s after the measurement
-    distance_to_wall = distance_to_wall_buf / cnt;
-    angle_of_vehicle = angle_of_vehicle_buf / cnt;
-    STATE = TASKTYPE::PARKING;
-    return;
-  }
-  STOP();
-  DataUpdate();
-  // measure the distance from the sonar sensors
-  distance_to_wall_buf += (L_sonar_dist + R_sonar_dist) / 2;
-  // measure the angle of the vehicle to the wall
-  angle_of_vehicle_buf += (L_sonar_dist - R_sonar_dist) / 2;
-  cnt++;
-}
-
-void Parking(){
-  // park the robot
-  //TODO
-  DataUpdate();
-  switch (PARKING)
-  {
-  case PRAKINGSTATE::FORWARD:
-    Serial.println("PARKING: FORWARD\n*******************");
-    if (distance_to_wall > 5.1){
-      Motor_PWM = 500;
-      ADVANCE();
-      }
-    else if  (distance_to_wall < 4.9)
-      BACK(300, 300, 300, 300);
-    else{
-      STOP();
-      delay(1000);
-      PARKING = PRAKINGSTATE::TRANSIT;
-    }
-    break;
-  case PRAKINGSTATE::TRANSIT:
-    Serial.println("PARKING: TRANSIT\n*******************");
-    if (int_left > int_right ){
-      Motor_PWM = 300;
-      LEFT_1();
-    }
-    else if (int_left < int_right){
-      Motor_PWM = 300;
-      RIGHT_1();
-    }
-    else{
-      STOP();
-      // PARKING = PRAKINGSTATE::ROTATE;
-      PARKING = PRAKINGSTATE::END_PARKING;
-    }
-    break;
-  // TBD may not be necessary
-  case PRAKINGSTATE::ROTATE:
-    // // rotate the robot to the direction of the light source
-    // if (){
-    //   rotate_1(500, 500, 500, 500);
-    // }
-    // else if (){
-    //   rotate_2(500, 500, 500, 500);
-    // }
-    // else{
-    //   STOP();
-    //   PARKING = PRAKINGSTATE::END_PARKING;
-    // }
-    break;
-  case PRAKINGSTATE::END_PARKING:
-    Serial.println("PARKING: END_PARKING\n*******************");
-    STOP();
-    STATE = TASKTYPE::END_STATE;
-    delay(2000);
-    break;
-  }
-
-}
-
-void DataUpdate(){
-  // update the data
-  // get the distance from the sonar sensors
-  get_distance();
-  // get the light intensity from the light sensors
-  get_light();
-  // get the gyroscope axis x, y and z information
-  get_gyro();
-
-  //debug
-  Serial.print("Left sonar distance = ");
-  Serial.print(L_sonar_dist);
-  Serial.print(";  Right sonar distance = ");
-  Serial.println(R_sonar_dist);
-
-  Serial.print("PWM: ");
-  Serial.println(Motor_PWM);
-
-  // Serial.print("Left sensor intensity = ");
-  // Serial.print(int_right);
-  // Serial.print(";  Right sensor intensity = ");
-  // Serial.println(int_left);
-
-  Serial.print("Pitch (Angle_X) : ");
-  Serial.print(pitch);
-  Serial.print("  Roll  (Angle_Y) : ");
-  Serial.print(roll);
-  Serial.print("  Yaw   (Angle_Z) : ");
-  Serial.println(yaw);
-
-  // BT Serial
-  if (!Serial3.available()){
-  Serial3.print("\nL_sonar_dist: ");
-  Serial3.print(L_sonar_dist);
-  Serial3.print(",");
-  Serial3.print("R_sonar_dist: ");
-  Serial3.println(R_sonar_dist);
-  
-  Serial3.print("\nLeft_light: ");
-  Serial3.print(int_left);
-  Serial3.print(",");
-  Serial3.print("Right_light: ");
-  Serial3.println(int_right);
-
-  Serial3.print("\nGyro_pitch: ");
-  Serial3.print(pitch);
-  Serial3.print(",");
-  Serial3.print("Gyro_roll: ");
-  Serial3.print(roll);
-  Serial3.print(",");
-  Serial3.print("Gyro_yaw: ");
-  Serial3.println(yaw);
-  }
-}
-
-void AUTO_Control(){
-//   // Basic structure of the AUTO_Control Start
-  switch (STATE)
-  {
-    case TASKTYPE::INIT:
-      Serial.print("*******************\nSTATE: INIT\n");
-      break;
-    case TASKTYPE::ALIGNMENT: 
-      Serial.print("*******************\nSTATE: Alignment\n");
-      Alignment();
-      break;
-    case TASKTYPE::MOVEANDROTATE:
-      Serial.print("*******************\nSTATE: MoveAndRotate\n");
-      MoveAndRotate();
-      break;
-    case TASKTYPE::MEASUREMENT:
-      Serial.print("*******************\nSTATE: Measurement\n");
-      Measurement();
-      break;
-    case TASKTYPE::PARKING:
-      Serial.print("*******************\nSTATE: Parking\n");
-      Parking();
-      break;
-    case TASKTYPE::END_STATE:
-      STOP();
-      break;
-  default:
-    STOP();
-    break;
-  }
-  // delay(100);
-  // Basic structure of the AUTO_Control End
-}
-
-/*
-  ABOVE BY GROUP C4-C  
-*/
-////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////
-
-
 
 void loop()
 {
   // run the code in every 20ms
   if (millis() > (time + 15)) {
-    voltCount++;
     time = millis();
 //    UART_Control(); //get USB and BT serial data
+    Serial.print("M1 ecd:");
+    Serial.println(motor1.encoderValue);
 
-    AUTO_Control();
+
 
     //constrain the servo movement
-    pan = constrain(pan, servo_min, servo_max);
-    tilt = constrain(tilt, servo_min, servo_max);
-    
-    //send signal to servo
-    servo_pan.write(pan);
-    servo_tilt.write(tilt);
-  }if (voltCount>=5){
-    voltCount=0;
-    sendVolt();
+    // servo_ctrl(); 
   }
 }
