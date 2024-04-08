@@ -3,7 +3,7 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-#include <MPU6050_light.h>
+#include <PID_v1.h>
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 32 // OLED display height, in pixels
 
@@ -19,10 +19,7 @@ int tilt = 120;
 int window_size = 0;
 int BT_alive_cnt = 0;
 int voltCount = 0;
-#include <Servo.h>
-Servo servo_pan;
-Servo servo_tilt;
-int servo_min = 20;
+int servo_fmin = 20;
 int servo_max = 160;
 
 unsigned long time;
@@ -31,22 +28,6 @@ unsigned long time;
 int pos = 0;
 int MAX_VALUE = 2000;
 int MIN_VALUE = 300;
-
-#define MOTORA_FORWARD(pwm)    do{digitalWrite(DIRA1,LOW); digitalWrite(DIRA2,HIGH);analogWrite(PWMA,pwm);}while(0)
-#define MOTORA_STOP(x)         do{digitalWrite(DIRA1,LOW); digitalWrite(DIRA2,LOW); analogWrite(PWMA,0);}while(0)
-#define MOTORA_BACKOFF(pwm)    do{digitalWrite(DIRA1,HIGH);digitalWrite(DIRA2,LOW); analogWrite(PWMA,pwm);}while(0)
-
-#define MOTORB_FORWARD(pwm)    do{digitalWrite(DIRB1,LOW); digitalWrite(DIRB2,HIGH);analogWrite(PWMB,pwm);}while(0)
-#define MOTORB_STOP(x)         do{digitalWrite(DIRB1,LOW); digitalWrite(DIRB2,LOW); analogWrite(PWMB,0);}while(0)
-#define MOTORB_BACKOFF(pwm)    do{digitalWrite(DIRB1,HIGH);digitalWrite(DIRB2,LOW); analogWrite(PWMB,pwm);}while(0)
-
-#define MOTORC_FORWARD(pwm)    do{digitalWrite(DIRC1,LOW); digitalWrite(DIRC2,HIGH);analogWrite(PWMC,pwm);}while(0)
-#define MOTORC_STOP(x)         do{digitalWrite(DIRC1,LOW); digitalWrite(DIRC2,LOW); analogWrite(PWMC,0);}while(0)
-#define MOTORC_BACKOFF(pwm)    do{digitalWrite(DIRC1,HIGH);digitalWrite(DIRC2,LOW); analogWrite(PWMC,pwm);}while(0)
-
-#define MOTORD_FORWARD(pwm)    do{digitalWrite(DIRD1,LOW); digitalWrite(DIRD2,HIGH);analogWrite(PWMD,pwm);}while(0)
-#define MOTORD_STOP(x)         do{digitalWrite(DIRD1,LOW); digitalWrite(DIRD2,LOW); analogWrite(PWMD,0);}while(0)
-#define MOTORD_BACKOFF(pwm)    do{digitalWrite(DIRD1,HIGH);digitalWrite(DIRD2,LOW); analogWrite(PWMD,pwm);}while(0)
 
 #define SERIAL  Serial
 #define BTSERIAL Serial3
@@ -68,10 +49,15 @@ int MIN_VALUE = 300;
 /*
   BELOW BY GROUP C4-C
 */
-#ifndef DCMOTOR_HPP
-#define DCMOTOR_HPP
 
 #include <Arduino.h>
+
+#define Wheel_Radius 0.04 //m
+#define MOTOR_KP 30.0
+#define MOTOR_KI 0.05
+#define MOTOR_KD 0.1
+
+#define NORM(x, min, max) if (x < min) x = min; if (x > max) x = max;
 
 class DCMotor {
   private:
@@ -82,7 +68,10 @@ class DCMotor {
   public:
       int encoderAPin;
       int encoderBPin;
-      double encoderValue; // Encoder value
+      double ecd; // Encoder value
+      double last_ecd;
+      double speed;
+      double speed_set;
 
       DCMotor(int pwm, int dirA, int dirB, int encoderA, int encoderB);
       void setMotor(int analogSpeed);
@@ -92,35 +81,63 @@ class DCMotor {
       void encoderSubroutineB();
 };
 
-#pragma once
+class Chassis_control_t {
+  private:
+
+  public:
+    double vx, vy, wz;
+} Chassis_control;
+
 
 const double EPRA = 660;//转速比：1：660
 const double EPRB = 660;//转速比：1：660
 const double EPRC = 660;//转速比：1：660
 const double EPRD = 660;//转速比：1：660
 
-const int pwm1 = 12; const int dir1A = 34; const int dir1B = 35; const int encoder1A = 18; const int encoder1B = 31; // A M1
-const int pwm2 = 8; const int dir2A = 37; const int dir2B = 36; const int encoder2A = 19; const int encoder2B = 38; // B M2
-const int pwm3 = 6; const int dir3A = 43; const int dir3B = 42; const int encoder3A = 3; const int encoder3B = 49; // C M3
-const int pwm4 = 5; const int dir4A = A4; const int dir4B = A5; const int encoder4A = 2; const int encoder4B = A1; // D M4
+const int pwmPin1 = 12; const int dir1A = 34; const int dir1B = 35; const int encoder1A = 18; const int encoder1B = 31; // A M1
+const int pwmPin2 = 8; const int dir2A = 37; const int dir2B = 36; const int encoder2A = 19; const int encoder2B = 38; // B M2
+const int pwmPin3 = 6; const int dir3A = 43; const int dir3B = 42; const int encoder3A = 3; const int encoder3B = 49; // C M3
+const int pwmPin4 = 5; const int dir4A = A4; const int dir4B = A5; const int encoder4A = 2; const int encoder4B = A1; // D M4
+
+//testing
+#define MOTORA_FORWARD(pwm)    do{digitalWrite(dir1A,LOW); digitalWrite(dir1B,HIGH);analogWrite(pwmPin1,pwm);}while(0)
+#define MOTORA_STOP(x)         do{digitalWrite(dir1A,LOW); digitalWrite(dir1B,LOW); analogWrite(pwmPin1,0);}while(0)
+#define MOTORA_BACKOFF(pwm)    do{digitalWrite(dir1A,HIGH);digitalWrite(dir1B,LOW); analogWrite(pwmPin1,pwm);}while(0)
+
+#define MOTORB_FORWARD(pwm)    do{digitalWrite(dir2A,LOW); digitalWrite(dir2B,HIGH);analogWrite(pwmPin2,pwm);}while(0)
+#define MOTORB_STOP(x)         do{digitalWrite(dir2A,LOW); digitalWrite(dir2B,LOW); analogWrite(pwmPin2,0);}while(0)
+#define MOTORB_BACKOFF(pwm)    do{digitalWrite(dir2A,HIGH);digitalWrite(dir2B,LOW); analogWrite(pwmPin2,pwm);}while(0)
+
+#define MOTORC_FORWARD(pwm)    do{digitalWrite(dir3A,LOW); digitalWrite(dir3B,HIGH);analogWrite(pwmPin3,pwm);}while(0)
+#define MOTORC_STOP(x)         do{digitalWrite(dir3A,LOW); digitalWrite(dir3B,LOW); analogWrite(pwmPin3,0);}while(0)
+#define MOTORC_BACKOFF(pwm)    do{digitalWrite(dir3A,HIGH);digitalWrite(dir3B,LOW); analogWrite(pwmPin3,pwm);}while(0)
+
+#define MOTORD_FORWARD(pwm)    do{digitalWrite(dir4A,LOW); digitalWrite(dir4B,HIGH);analogWrite(pwmPin4,pwm);}while(0)
+#define MOTORD_STOP(x)         do{digitalWrite(dir4A,LOW); digitalWrite(dir4B,LOW); analogWrite(pwmPin4,0);}while(0)
+#define MOTORD_BACKOFF(pwm)    do{digitalWrite(dir4A,HIGH);digitalWrite(dir4B,LOW); analogWrite(pwmPin4,pwm);}while(0)
+//end testing
 
 const double pi = 3.14159265358979323846;
 
 double eps1 = 0, eps2 = 0, eps3 = 0, eps4 = 0;// encoder count per second
 double eps1_fb = 0, eps2_fb = 0, eps3_fb = 0, eps4_fb = 0;// eps filtered feedback
-double power1 = 10, power2 = 10, power3 = 10, power4 = 10;
+double pidout1 = 0, pidout2 = 0, pidout3 = 0, pidout4 = 0;
+double pwm1 = 0, pwm2 = 0, pwm3 = 0, pwm4 = 0;
 
-MovingAverage filter1; MovingAverage filter2; MovingAverage filter3; MovingAverage filter4;
+DCMotor motor1(pwmPin1, dir1A, dir1B, encoder1A, encoder1B); DCMotor motor2(pwmPin2, dir2A, dir2B, encoder2A, encoder2B);
+DCMotor motor3(pwmPin3, dir3A, dir3B, encoder3A, encoder3B); DCMotor motor4(pwmPin4, dir4A, dir4B, encoder4A, encoder4B);
 
-DCMotor motor1(pwm1, dir1A, dir1B, encoder1A, encoder1B); DCMotor motor2(pwm2, dir2A, dir2B, encoder2A, encoder2B);
-DCMotor motor3(pwm3, dir3A, dir3B, encoder3A, encoder3B); DCMotor motor4(pwm4, dir4A, dir4B, encoder4A, encoder4B);
-
-#endif 
+// PID::PID(double* Input, double* Output, double* Setpoint,
+//         double Kp, double Ki, double Kd, int POn, int ControllerDirection)
+PID motorPID1(&motor1.speed, &pidout1, &motor1.speed_set, MOTOR_KP, MOTOR_KI, MOTOR_KD, DIRECT);
+PID motorPID2(&motor2.speed, &pidout2, &motor2.speed_set, MOTOR_KP, MOTOR_KI, MOTOR_KD, DIRECT);
+PID motorPID3(&motor3.speed, &pidout3, &motor3.speed_set, MOTOR_KP, MOTOR_KI, MOTOR_KD, DIRECT);
+PID motorPID4(&motor4.speed, &pidout4, &motor4.speed_set, MOTOR_KP, MOTOR_KI, MOTOR_KD, DIRECT);
 
 
 DCMotor::DCMotor(int pwm, int dirA, int dirB, int encoderA, int encoderB) : 
 pwmPin(pwm), dirAPin(dirA), dirBPin(dirB), encoderAPin(encoderA),
-encoderBPin(encoderB), encoderValue(0) {
+encoderBPin(encoderB), ecd(0) {
     pinMode(pwmPin, OUTPUT);
     pinMode(dirAPin, OUTPUT);
     pinMode(dirBPin, OUTPUT);
@@ -172,187 +189,97 @@ void DCMotor::setDirection(int dir) {
 void DCMotor::encoderSubroutineA() {
     if (digitalRead(encoderAPin)){
         if (digitalRead(encoderBPin)){
-            encoderValue ++;
+            ecd ++;
         }
         else{
-            encoderValue --;
+            ecd --;
         }
     }
     else{ 
         if (digitalRead(encoderBPin)){
-            encoderValue --;
+            ecd --;
         }
         else{
-            encoderValue ++;
+            ecd ++;
         }
     }
 }
 void DCMotor::encoderSubroutineB() {
     if (digitalRead(encoderBPin)){
         if (digitalRead(encoderAPin)){
-            encoderValue ++;
+            ecd ++;
         }
         else{
-            encoderValue --;
+            ecd --;
         }
     }
     else{ 
         if (digitalRead(encoderAPin)){
-            encoderValue --;
+            ecd --;
         }
         else{
-            encoderValue ++;
+            ecd ++;
         }
     }
 }
 
+// setup interrupt functions
+  void encoder_subroutine_1A(){motor1.encoderSubroutineA();}
+  void encoder_subroutine_2A(){motor2.encoderSubroutineA();}
+  void encoder_subroutine_3A(){motor3.encoderSubroutineA();}
+  void encoder_subroutine_4A(){motor4.encoderSubroutineA();} 
+  void encoder_subroutine_1B(){motor1.encoderSubroutineB();}
+  void encoder_subroutine_2B(){motor2.encoderSubroutineB();}
+  void encoder_subroutine_3B(){motor3.encoderSubroutineB();}
+  void encoder_subroutine_4B(){motor4.encoderSubroutineB();} 
 
-void cmd_vel_cb(const geometry_msgs::Twist& vel_msg){ // x // y // z
-    delay(10);
-    motorPID1.outputSum = 0;
-    motorPID2.outputSum = 0;
-    motorPID3.outputSum = 0;
-    motorPID4.outputSum = 0;
-    motor1.setDirection(0);motor2.setDirection(0);motor3.setDirection(0);motor4.setDirection(0);
-    mecanumDrive.calculateWheelSpeeds(vel_msg.linear.x, vel_msg.linear.y, vel_msg.angular.z);
-    set_eps1 = EPRA * mecanumDrive.wheelSpeeds[0] / 2 / pi; 
-    set_eps2 = EPRB * mecanumDrive.wheelSpeeds[1] / 2 / pi; 
-    set_eps3 = EPRC * mecanumDrive.wheelSpeeds[2] / 2 / pi; 
-    set_eps4 = EPRD * mecanumDrive.wheelSpeeds[3] / 2 / pi; 
-}
+// motor setup
+void motor_setup(){
+  
+  DCMotor motor1(pwmPin1, dir1A, dir1B, encoder1A, encoder1B); DCMotor motor2(pwmPin2, dir2A, dir2B, encoder2A, encoder2B);
+  DCMotor motor3(pwmPin3, dir3A, dir3B, encoder3A, encoder3B); DCMotor motor4(pwmPin4, dir4A, dir4B, encoder4A, encoder4B);
 
-int Motor_PWM;
+  attachInterrupt(digitalPinToInterrupt(encoder1A), encoder_subroutine_1A, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(encoder2A), encoder_subroutine_2A, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(encoder3A), encoder_subroutine_3A, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(encoder4A), encoder_subroutine_4A, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(encoder1B), encoder_subroutine_1B, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(encoder2B), encoder_subroutine_2B, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(encoder3B), encoder_subroutine_3B, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(encoder4B), encoder_subroutine_4B, CHANGE);
 
-// Motor implementation
-// M1 ----- M2
-//  |       |
-//  |       |
-// M3 ----- M4
-
-
-
-void UART_Control()
-{
-  String myString;
-  char BT_Data = 0;
-  // USB data
-  /****
-   * Check if USB Serial data contain brackets
-   */
-
-  if (SERIAL.available())
-  {
-    char inputChar = SERIAL.read();
-    if (inputChar == '(') { // Start loop when left bracket detected
-      myString = "";
-      inputChar = SERIAL.read();
-      while (inputChar != ')')
-      {
-        myString = myString + inputChar;
-        inputChar = SERIAL.read();
-        if (!SERIAL.available()) {
-          break;
-        }// Break when bracket closed
-      }
-    }
-    int commaIndex = myString.indexOf(','); //Split data in bracket (a, b, c)
-    //Search for the next comma just after the first
-    int secondCommaIndex = myString.indexOf(',', commaIndex + 1);
-    String firstValue = myString.substring(0, commaIndex);
-    String secondValue = myString.substring(commaIndex + 1, secondCommaIndex);
-    String thirdValue = myString.substring(secondCommaIndex + 1); // To the end of the string
-    if ((firstValue.toInt() > servo_min and firstValue.toInt() < servo_max) and  //Convert them to numbers
-        (secondValue.toInt() > servo_min and secondValue.toInt() < servo_max)) {
-      pan = firstValue.toInt();
-      tilt = secondValue.toInt();
-      window_size = thirdValue.toInt();
-    }
-    SERIAL.flush();
-    Serial3.println(myString);
-    Serial3.println("Done");
-    if (myString != "") {
-      display.clearDisplay();
-      display.setCursor(0, 0);     // Start at top-left corner
-      display.println("Serial_Data = ");
-      display.println(myString);
-      display.display();
-    }
-  }
-
-
-
-
-
-
-
-  //BT Control
-  /*
-    Receive data from app and translate it to motor movements
-  */
-  // BT Module on Serial 3 (D14 & D15)
-  if (Serial3.available())
-  {
-    BT_Data = Serial3.read();
-    SERIAL.print(BT_Data);
-    Serial3.flush();
-    BT_alive_cnt = 100;
-    display.clearDisplay();
-    display.setCursor(0, 0);     // Start at top-left corner
-    display.println("BT_Data = ");
-    display.println(BT_Data);
-    display.display();
-  }
-
-  BT_alive_cnt = BT_alive_cnt - 1;
-  if (BT_alive_cnt <= 0) {
-    STOP();
-  }
-  switch (BT_Data)
-  {
-    case 'A':  ADVANCE();  M_LOG("Run!\r\n"); break;
-    case 'B':  RIGHT_2();  M_LOG("Right up!\r\n");     break;
-    case 'C':  rotate_1();                            break;
-    case 'D':  RIGHT_3();  M_LOG("Right down!\r\n");   break;
-    case 'E':  BACK(500, 500, 500, 500);     M_LOG("Run!\r\n");          break;
-    case 'F':  LEFT_3();   M_LOG("Left down!\r\n");    break;
-    case 'G':  rotate_2();                              break;
-    case 'H':  LEFT_2();   M_LOG("Left up!\r\n");     break;
-    case 'Z':  STOP();     M_LOG("Stop!\r\n");        break;
-    case 'z':  STOP();     M_LOG("Stop!\r\n");        break;
-    case 'd':  LEFT_2();   M_LOG("Left!\r\n");        break;
-    case 'b':  RIGHT_2();  M_LOG("Right!\r\n");        break;
-    case 'L':  Motor_PWM = 1500;                      break;
-    case 'M':  Motor_PWM = 500;                       break;
-  }
+  motorPID1.SetMode(AUTOMATIC); motorPID2.SetMode(AUTOMATIC);
+  motorPID3.SetMode(AUTOMATIC); motorPID4.SetMode(AUTOMATIC); 
+  motorPID1.SetSampleTime(10); motorPID2.SetSampleTime(10);
+  motorPID3.SetSampleTime(10); motorPID4.SetSampleTime(10);
+  motorPID1.SetOutputLimits(-255, 255); motorPID2.SetOutputLimits(-255, 255);
+  motorPID3.SetOutputLimits(-255, 255); motorPID4.SetOutputLimits(-255, 255);
 }
 
 
 
-/*Voltage Readings transmitter
-Sends them via Serial3*/
-void sendVolt(){
-    newV = analogRead(A0);
-    if(newV!=oldV) {
-      if (!Serial3.available()) {
-        Serial3.println(newV);
-        Serial.println(newV);
-      }
-    }
-    oldV=newV;
-}
 
+// void cmd_vel_cb(const geometry_msgs::Twist& vel_msg){ // x // y // z
+//     delay(10);
+//     motorPID1.outputSum = 0;
+//     motorPID2.outputSum = 0;
+//     motorPID3.outputSum = 0;
+//     motorPID4.outputSum = 0;
+//     motor1.setDirection(0);motor2.setDirection(0);motor3.setDirection(0);motor4.setDirection(0);
+//     mecanumDrive.calculateWheelSpeeds(vel_msg.linear.x, vel_msg.linear.y, vel_msg.angular.z);
+//     set_eps1 = EPRA * mecanumDrive.wheelSpeeds[0] / 2 / pi; 
+//     set_eps2 = EPRB * mecanumDrive.wheelSpeeds[1] / 2 / pi; 
+//     set_eps3 = EPRC * mecanumDrive.wheelSpeeds[2] / 2 / pi; 
+//     set_eps4 = EPRD * mecanumDrive.wheelSpeeds[3] / 2 / pi; 
+// }
 
 
 //Where the program starts
-void setup()
-{
+void setup(){
   SERIAL.begin(115200); // USB serial setup
   SERIAL.println("Start");
-  STOP(); // Stop the robot
   Serial3.begin(9600); // BT serial setup
   //Pan=PL4=>48, Tilt=PL5=>47
-   servo_pan.attach(48);
-   servo_tilt.attach(47);
   //////////////////////////////////////////////
   //OLED Setup//////////////////////////////////
   if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3C for 128x32
@@ -366,57 +293,108 @@ void setup()
   display.println("AI Robot");
   display.display();
 
+  //Motor Setup
+  motor_setup();
+}
 
+void Data_update() {
+  eps1 = motor1.ecd - motor1.last_ecd;
+  eps2 = motor2.ecd - motor2.last_ecd;
+  eps3 = motor3.ecd - motor3.last_ecd;
+  eps4 = motor4.ecd - motor4.last_ecd;
+  motor1.last_ecd = motor1.ecd;
+  motor2.last_ecd = motor2.ecd;
+  motor3.last_ecd = motor3.ecd;
+  motor4.last_ecd = motor4.ecd;
+  // eps1_fb = filter1.add(eps1);
+  // eps2_fb = filter2.add(eps2);
+  // eps3_fb = filter3.add(eps3);
+  // eps4_fb = filter4.add(eps4);
+
+  motor1.speed = eps1 * Wheel_Radius / EPRA * 100; // m/s
+  motor2.speed = eps2 * Wheel_Radius / EPRB * 100;
+  motor3.speed = eps3 * Wheel_Radius / EPRC * 100; 
+  motor4.speed = eps4 * Wheel_Radius / EPRD * 100;
 
 }
 
-
-////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////
-/*
-  BELOW BY GROUP C4-C
-*/
-void calibrate() {
-    //calibrate the gyroscope
-    Serial.begin(115200); 
-    Wire.begin();
-    mpu.begin();
-    Serial.println("\nCalculating gyro offset, do not move MPU6050");
-    Serial.println("............");
-    delay(1000);         //delay 1000ms waiting for calibration of gyroscope to complete
-    Serial.println("Done\n*******************");
+// Motor implementation
+// M1/A ----- M2/B
+//   |          |
+//   |          |
+// M3/C ----- M4/D
+// vy -> forward
+// vx -> right
+// wz -> rotate CW
+void Chassis_Vector_to_Mecanum_Wheel_Speed(double vx, double vy, double wz){
+  double wheel_speed[4];
+  wheel_speed[0] = -vy + vx - wz;
+  wheel_speed[1] = vy + vx - wz;  
+  wheel_speed[2] = -vy - vx - wz;
+  wheel_speed[3] = vy - vx - wz;
+  motor1.speed_set = wheel_speed[0];
+  motor2.speed_set = wheel_speed[1];
+  motor3.speed_set = wheel_speed[2];
+  motor4.speed_set = wheel_speed[3];
 }
 
-// void get_gyro() {
-//     //once call Dataupdate() update the gyroscope info 
-//     mpu.update();
-//     pitch = mpu.getAngleX();
-//     roll = mpu.getAngleY();
-//     yaw = mpu.getAngleZ();
-// }
+// speed of motor 0-0.36m/s from pwm 0-255
+void Motor_control(){
+  // Chassis_control.vx = 0.05;
+  // Chassis_control.vy = 1.06;
+  // Chassis_control.wz = 0.0;
 
-void servo_ctrl(){
-      // pan = constrain(pan, servo_min, servo_max);
-    // tilt = constrain(tilt, servo_min, servo_max);
-    
-    //send signal to servo
-    // servo_pan.write(pan);
-    // servo_tilt.write(tilt);
-}
+  Chassis_Vector_to_Mecanum_Wheel_Speed(Chassis_control.vx, Chassis_control.vy, Chassis_control.wz);
 
+  motorPID1.Compute();
+  motorPID2.Compute();
+  motorPID3.Compute();
+  motorPID4.Compute();
+  pwm1 = pidout1 / 0.36 * 255;
+  pwm2 = pidout2 / 0.36 * 255;
+  pwm3 = pidout3 / 0.36 * 255;
+  pwm4 = pidout4 / 0.36 * 255;
+  NORM(pwm1, -255, 255)
+  NORM(pwm2, -255, 255)
+  NORM(pwm3, -255, 255)
+  NORM(pwm4, -255, 255)
+  motor1.setMotor(pwm1);
+  motor2.setMotor(pwm2);
+  motor3.setMotor(pwm3);
+  motor4.setMotor(pwm4);
+  }
+
+float debug1,debug2;
 void loop()
 {
-  // run the code in every 20ms
-  if (millis() > (time + 15)) {
+  // run the code in every 10ms
+  if (millis() - time > 10){
     time = millis();
-//    UART_Control(); //get USB and BT serial data
-    Serial.print("M1 ecd:");
-    Serial.println(motor1.encoderValue);
+    Data_update();
+    Motor_control();
 
 
 
-    //constrain the servo movement
-    // servo_ctrl(); 
+    //testing
+    // MOTORA_FORWARD(10);
+    // MOTORB_FORWARD(255);
+    // MOTORC_FORWARD(255);
+    // MOTORD_FORWARD(255);
+    Chassis_control.vx = -0.10;
+    Chassis_control.vy = 0.00;
+    Chassis_control.wz = 0.0;
+    // Serial.print("M1 ecd:");
+    // Serial.println(motor1.ecd);
+    // Serial.print("M1 speed:");
+    // Serial.println(motor1.speed);
+    // Serial.print("M1 speed_set: ");
+    // Serial.println(motor1.speed_set);
+    // Serial.print("M1 pidout: ");
+    // Serial.println(pidout1);
+    // Serial.print("M1 pwm: ");
+    // Serial.println(pwm1);
+    // Serial.println(motor1.speed); // serialport debug
+
+  delay(10);
   }
 }
