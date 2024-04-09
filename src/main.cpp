@@ -40,9 +40,6 @@ int MIN_VALUE = 300;
   #define M_LOG BTSERIAL.println
 #endif
 
-//PWM Definition
-#define MAX_PWM   2000
-#define MIN_PWM   300
 ////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -50,14 +47,12 @@ int MIN_VALUE = 300;
   BELOW BY GROUP C4-C
 */
 
-#include <Arduino.h>
 
 #define Wheel_Radius 0.04 //m
 #define MOTOR_KP 30.0
 #define MOTOR_KI 0.05
 #define MOTOR_KD 0.1
-
-#define NORM(x, min, max) if (x < min) x = min; if (x > max) x = max;
+#define CLIP(x, min, max) if (x < min) x = min; if (x > max) x = max;
 
 class DCMotor {
   private:
@@ -298,6 +293,7 @@ void setup(){
 }
 
 void Data_update() {
+  // Motor
   eps1 = motor1.ecd - motor1.last_ecd;
   eps2 = motor2.ecd - motor2.last_ecd;
   eps3 = motor3.ecd - motor3.last_ecd;
@@ -310,12 +306,37 @@ void Data_update() {
   // eps2_fb = filter2.add(eps2);
   // eps3_fb = filter3.add(eps3);
   // eps4_fb = filter4.add(eps4);
-
   motor1.speed = eps1 * Wheel_Radius / EPRA * 100; // m/s
   motor2.speed = eps2 * Wheel_Radius / EPRB * 100;
   motor3.speed = eps3 * Wheel_Radius / EPRC * 100; 
   motor4.speed = eps4 * Wheel_Radius / EPRD * 100;
 
+  // infrared
+
+  // gray scale detect
+
+  // vision detect
+  
+  // IMU
+
+  // gimbal
+  yaw->ENC_last_ecd = yaw->ENC_ecd;
+  // ENC angle?
+	yaw->INS_angle = INS_angle_deg[0] - yaw->INS_angle_offset; // -180<angle_deg<180
+	
+	if ( yaw->INS_angle > 180.0f)
+		yaw->INS_angle = yaw->INS_angle - 360.0f;
+	if ( yaw->INS_angle < -180.0f)
+		yaw->INS_angle = yaw->INS_angle + 360.0f;
+	
+	yaw->ENC_angle = ( yaw->ENC_ecd / 65535.0f * 360.0f + yaw->ENC_round_cnt * 360.0f );
+	yaw->origin = (YAW_MOTOR_INIT_POS / 65535.0f) * 360.0f + ( yaw->ENC_round_cnt * 360.0f );
+	yaw->ENC_relative_angle = yaw->ENC_angle - yaw->origin;
+	if (yaw->ENC_relative_angle < -180.0f )
+		yaw->ENC_relative_angle = 360.0f + yaw->ENC_relative_angle;
+	if (yaw->ENC_relative_angle > 180.0f )
+		yaw->ENC_relative_angle = yaw->ENC_relative_angle - 360.0f;
+			
 }
 
 // Motor implementation
@@ -340,8 +361,8 @@ void Chassis_Vector_to_Mecanum_Wheel_Speed(double vx, double vy, double wz){
 
 // speed of motor 0-0.36m/s from pwm 0-255
 void Motor_control(){
-  // Chassis_control.vx = 0.05;
-  // Chassis_control.vy = 1.06;
+  // Chassis_control.vx = 0.0;
+  // Chassis_control.vy = 0.0;
   // Chassis_control.wz = 0.0;
 
   Chassis_Vector_to_Mecanum_Wheel_Speed(Chassis_control.vx, Chassis_control.vy, Chassis_control.wz);
@@ -354,47 +375,73 @@ void Motor_control(){
   pwm2 = pidout2 / 0.36 * 255;
   pwm3 = pidout3 / 0.36 * 255;
   pwm4 = pidout4 / 0.36 * 255;
-  NORM(pwm1, -255, 255)
-  NORM(pwm2, -255, 255)
-  NORM(pwm3, -255, 255)
-  NORM(pwm4, -255, 255)
+  CLIP(pwm1, -255, 255)
+  CLIP(pwm2, -255, 255)
+  CLIP(pwm3, -255, 255)
+  CLIP(pwm4, -255, 255)
   motor1.setMotor(pwm1);
   motor2.setMotor(pwm2);
   motor3.setMotor(pwm3);
   motor4.setMotor(pwm4);
-  }
+}
+
+void Obstacle_avoidance(){
+  // infrared 7.5 cm 
+}
+
+void Line_tracking(){
+  // gray scale detect 0.1 cm tolerance
+}
+
+void Vision_tracking(){
+  // vision detect from camera
+}
+
+void Arm_control(){
+  // servo control
+}
+
+void Gimbal_control(){
+  // servo control
+}
 
 float debug1,debug2;
+void debug(){
+  //testing
+  // MOTORA_FORWARD(10);
+  // MOTORB_FORWARD(255);
+  // MOTORC_FORWARD(255);
+  // MOTORD_FORWARD(255);
+  Chassis_control.vx = -0.10;
+  Chassis_control.vy = 0.00;
+  Chassis_control.wz = 0.0;
+  // Serial.print("M1 ecd:");
+  // Serial.println(motor1.ecd);
+  // Serial.print("M1 speed:");
+  // Serial.println(motor1.speed);
+  // Serial.print("M1 speed_set: ");
+  // Serial.println(motor1.speed_set);
+  // Serial.print("M1 pidout: ");
+  // Serial.println(pidout1);
+  // Serial.print("M1 pwm: ");
+  // Serial.println(pwm1);
+  // Serial.println(motor1.speed); // serialport debug
+}
+
 void loop()
 {
-  // run the code in every 10ms
-  if (millis() - time > 10){
-    time = millis();
-    Data_update();
-    Motor_control();
+  time = millis();
 
+  Data_update();
+  Obstacle_avoidance();
+	Line_tracking();
+	Vision_tracking();
+	Arm_control();
+  Gimbal_control();
+  Motor_control();
 
-
-    //testing
-    // MOTORA_FORWARD(10);
-    // MOTORB_FORWARD(255);
-    // MOTORC_FORWARD(255);
-    // MOTORD_FORWARD(255);
-    Chassis_control.vx = -0.10;
-    Chassis_control.vy = 0.00;
-    Chassis_control.wz = 0.0;
-    // Serial.print("M1 ecd:");
-    // Serial.println(motor1.ecd);
-    // Serial.print("M1 speed:");
-    // Serial.println(motor1.speed);
-    // Serial.print("M1 speed_set: ");
-    // Serial.println(motor1.speed_set);
-    // Serial.print("M1 pidout: ");
-    // Serial.println(pidout1);
-    // Serial.print("M1 pwm: ");
-    // Serial.println(pwm1);
-    // Serial.println(motor1.speed); // serialport debug
+  //debug
+  debug();
 
   delay(10);
-  }
 }
