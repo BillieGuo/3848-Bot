@@ -47,6 +47,10 @@ int MIN_VALUE = 300;
   BELOW BY GROUP C4-C
 */
 
+//infrared sensors
+
+//grayscale sensors
+//ultrasonic sensors
 
 #define Wheel_Radius 0.04 //m
 #define MOTOR_KP 30.0
@@ -84,10 +88,10 @@ class Chassis_control_t {
 } Chassis_control;
 
 
-const double EPRA = 660;//转速比：1：660
-const double EPRB = 660;//转速比：1：660
-const double EPRC = 660;//转速比：1：660
-const double EPRD = 660;//转速比：1：660
+const double EPRA = 660;//�?速比�?1�?660
+const double EPRB = 660;//�?速比�?1�?660
+const double EPRC = 660;//�?速比�?1�?660
+const double EPRD = 660;//�?速比�?1�?660
 
 const int pwmPin1 = 12; const int dir1A = 34; const int dir1B = 35; const int encoder1A = 18; const int encoder1B = 31; // A M1
 const int pwmPin2 = 8; const int dir2A = 37; const int dir2B = 36; const int encoder2A = 19; const int encoder2B = 38; // B M2
