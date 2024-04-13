@@ -48,8 +48,19 @@ int MIN_VALUE = 300;
 */
 
 //infrared sensors
+#define INFRARED1 38 //front left PD7
+#define INFRARED2 41 //front right PG0
+#define INFRARED3 40 //left PG1
+#define INFRARED4 37 //right PC0
+#define INFRARED5 36 //back PC1
 
 //grayscale sensors
+#define GRAYSCALE1 A1 //left most PF1
+#define GRAYSCALE2 A2 //left second PF2
+#define GRAYSCALE3 A3 //middle PF3
+#define GRAYSCALE4 A4 //right second PF4
+#define GRAYSCALE5 A5 //right most PF5
+
 //ultrasonic sensors
 
 #define Wheel_Radius 0.04 //m
