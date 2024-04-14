@@ -457,7 +457,14 @@ void Motor_control(){
 
 void Obstacle_avoidance(){
   // infrared 7.5 cm 
-  if (Infrared_front_left == 0)
+  // both infrared detects the obstacle & within 7.5cm
+  if ((Infrared_front_left == 0 && Infrared_front_right == 0) && (Sonar_distance_in_cm < 8.0 && Sonar_distance_in_cm > 7.0)){
+    if (Infrared_left == 1 && INfrared_right == 1){
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = -0.1;
+      Chassis_control.wz = 0.0;
+    }
+  } 
 }
 
 void Line_tracking(){
