@@ -459,9 +459,28 @@ void Obstacle_avoidance(){
   // infrared 7.5 cm 
   // both infrared detects the obstacle & within 7.5cm
   if ((Infrared_front_left == 0 && Infrared_front_right == 0) && (Sonar_distance_in_cm < 8.0 && Sonar_distance_in_cm > 7.0)){
+    // both sides empty, move towards left
     if (Infrared_left == 1 && INfrared_right == 1){
       Chassis_control.vx = 0.0;
       Chassis_control.vy = -0.1;
+      Chassis_control.wz = 0.0;
+    }
+    // left side empty, move towards left
+    else if (Infrared_left == 1 && INfrared_right == 0){
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = -0.1;
+      Chassis_control.wz = 0.0;
+    }
+    // right side empty, move towards right
+    else if (Infrared_left == 0 && Infrared_right == 1){
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = 0.1;
+      Chassis_control.wz = 0.0;
+    }
+    //both sides occupied, move backwards
+    else if (Infrared_left == 0 && Infrared_right == 0){
+      Chassis_control.vx = -0.1;
+      Chassis_control.vy = 0.0;
       Chassis_control.wz = 0.0;
     }
   } 
