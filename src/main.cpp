@@ -476,7 +476,166 @@ void Obstacle_avoidance(){
   }
 
   switch (Infrared_combined) {
-  
+    case 0b00000: //no obstacle
+      Chassis_control.vx = 0.10;
+      Chassis_control.vy = 0.0;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b00001: //front left, move towards right
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = 0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b00010: //front right, move towards left
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = -0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b00011: //front left and front right, move towards left
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = -0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b00100: //left, go straigt
+      Chassis_control.vx = 0.10;
+      Chassis_control.vy = 0.0;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b00101: //left and front left, move towards right
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = 0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b00110: //left and front right, move towards right // actually not possible?
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = 0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b00111: //left, front left and front right, move towards right
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = 0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b01000: //right, go straight
+      Chassis_control.vx = 0.10;
+      Chassis_control.vy = 0.0;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b01001: //right and front left, move towards left // actually not possible?
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = -0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b01010: //right and front right, move towards left 
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = -0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b01011: //right, front left and front right, move towards left
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = -0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b01100: //right and left, go straigt
+      Chassis_control.vx = 0.10;
+      Chassis_control.vy = 0.0;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b01101: //right, left and front left, move backward
+      Chassis_control.vx = -0.05;
+      Chassis_control.vy = 0.0;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b01110: //right, left and front right, move backward
+      Chassis_control.vx = -0.05;
+      Chassis_control.vy = 0.0;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b01111: //right, left, front left and front right, move backward
+      Chassis_control.vx = -0.05;
+      Chassis_control.vy = 0.0;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b10000: //back, go straight
+      Chassis_control.vx = 0.10;
+      Chassis_control.vy = 0.0;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b10001: //back and front left, move forward right
+      Chassis_control.vx = 0.05;
+      Chassis_control.vy = 0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b10010: //back and front right, move forward left
+      Chassis_control.vx = 0.05;
+      Chassis_control.vy = -0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b10011: //back, front left and front right, move towards left
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = -0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b10100: //back and left, go straight
+      Chassis_control.vx = 0.10;
+      Chassis_control.vy = 0.0;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b10101: //back, left and front left, move towards right
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = 0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b10110: //back, left and front right, move towards right  // actually not possible?
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = 0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b10111: //back, left, front left and front right, move towards right
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = 0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b11000: //back and right, go straight
+      Chassis_control.vx = 0.10;
+      Chassis_control.vy = 0.0;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b11001: //back, right and front left, move towards left // actually not possible?
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = 0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b11010: //back, right and front right, move towards left
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = 0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b11011: //back, right, front left and front right, move towards left
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = 0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b11100: //back, right and left, go straight
+      Chassis_control.vx = 0.10;
+      Chassis_control.vy = 0.0;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b11101: //back, right, left and front left, move forward right // actually not possible?
+      Chassis_control.vx = 0.05;
+      Chassis_control.vy = 0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b11110: //back, right, left and front right, move forward left // actually not possible?
+      Chassis_control.vx = 0.05;
+      Chassis_control.vy = -0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b11111: //back, right, left, front left and front right, can only stop // actually not possible?
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = 0.0;
+      Chassis_control.wz = 0.0;
+      break;
   }
 }
 
