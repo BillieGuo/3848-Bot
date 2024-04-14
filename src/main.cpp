@@ -70,6 +70,7 @@ double Grayscale_left, Grayscale_right;
 #define SONAR_TRIG 29 //PA7
 #define SONAR_ECHO 28 //PA6
 double Sonar_distance_in_cm;
+int done, start_time;
 
 #define Wheel_Radius 0.04 //m
 #define MOTOR_KP 30.0
@@ -332,7 +333,7 @@ void Get_front_distance(){
   }
   if (millis() - start_time > 10){
     digitalWrite(SONAR_TRIG, LOW);
-    duration = pulseIn(SONAR_ECHO, HIGH);
+    Sonar_duration = pulseIn(SONAR_ECHO, HIGH);
     Sonar_distance_in_cm = (Sonar_duration/2.0) / 29.1;
     done = true;
   }
@@ -456,6 +457,7 @@ void Motor_control(){
 
 void Obstacle_avoidance(){
   // infrared 7.5 cm 
+  if (Infrared_front_left == 0)
 }
 
 void Line_tracking(){
