@@ -477,8 +477,8 @@ void Obstacle_avoidance(){
       Chassis_control.vy = 0.1;
       Chassis_control.wz = 0.0;
     }
-    //both sides occupied, move backwards
-    else if (Infrared_left == 0 && Infrared_right == 0){
+    //both sides occupied, back side empty, move backwards
+    else if ((Infrared_left == 0 && Infrared_right == 0) && Infrared_back == 1){
       Chassis_control.vx = -0.1;
       Chassis_control.vy = 0.0;
       Chassis_control.wz = 0.0;
