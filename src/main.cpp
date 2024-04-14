@@ -53,6 +53,8 @@ int MIN_VALUE = 300;
 #define INFRARED3 40 //left PG1
 #define INFRARED4 37 //right PC0
 #define INFRARED5 36 //back PC1
+int Infrared_front_left, Infrared_front_right;
+int Infrared_left, Infrared_right, Infrared_back;
 
 //grayscale sensors
 #define GRAYSCALE1 A1 //left most PF1
@@ -60,10 +62,14 @@ int MIN_VALUE = 300;
 #define GRAYSCALE3 A3 //middle PF3
 #define GRAYSCALE4 A4 //right second PF4
 #define GRAYSCALE5 A5 //right most PF5
+double Grayscale_middle_left, Grayscale_middle_right;
+double Grayscale_middle;
+double Grayscale_left, Grayscale_right;
 
 //ultrasonic sensors
 #define SONAR_TRIG 29 //PA7
 #define SONAR_ECHO 28 //PA6
+double Sonar_distance_in_cm;
 
 #define Wheel_Radius 0.04 //m
 #define MOTOR_KP 30.0
@@ -307,6 +313,29 @@ void setup(){
 
   //Motor Setup
   motor_setup();
+
+  //Ultrasonic Setup
+  pinMode(SONAR_ECHO, INPUT);
+  pinMode(SONAR_TRIG, OUTPUT);
+}
+
+// Sonar front distance from obstacle to car
+void Get_front_distance(){
+  long Sonar_duration;
+  if (done){
+    done = false;
+    start_time = millis();
+    digitalWrite(SONAR_TRIG, LOW); 
+  }
+  if (millis() - start_time > 2){
+    digitalWrite(SONAR_TRIG, HIGH);
+  }
+  if (millis() - start_time > 10){
+    digitalWrite(SONAR_TRIG, LOW);
+    duration = pulseIn(SONAR_ECHO, HIGH);
+    Sonar_distance_in_cm = (Sonar_duration/2.0) / 29.1;
+    done = true;
+  }
 }
 
 void Data_update() {
@@ -335,6 +364,8 @@ void Data_update() {
   // vision detect
   
   // IMU
+
+  // ultrasonic 
 
   // gimbal
   yaw->ENC_last_ecd = yaw->ENC_ecd;
@@ -448,7 +479,6 @@ void debug(){
 void loop()
 {
   time = millis();
-
   Data_update();
   Obstacle_avoidance();
 	Line_tracking();
