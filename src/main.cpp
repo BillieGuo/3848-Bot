@@ -347,6 +347,14 @@ void Infrared_states(){
   Infrared_back = digitalRead(INFRARED5);
 }
 
+// Grayscale detection
+void Grayscale_values(){
+  Grayscale_middle_left = analogRead(GRAYSCALE1);
+  Grayscale_middle_right = analogRead(GRAYSCALE5);
+  Grayscale_middle = analogRead(GRAYSCALE3);
+  Grayscale_left = analogRead(GRAYSCALE2);
+  Grayscale_right = analogRead(GRAYSCALE4);
+}
 
 void Data_update() {
   // Motor
@@ -368,8 +376,10 @@ void Data_update() {
   motor4.speed = eps4 * Wheel_Radius / EPRD * 100;
 
   // infrared
+  Infrared_states();
 
   // gray scale detect
+  Grayscale_values();
 
   // vision detect
   
