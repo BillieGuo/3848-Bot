@@ -338,6 +338,16 @@ void Get_front_distance(){
   }
 }
 
+// Infrared detection
+void Infrared_states(){
+  Infrared_front_left = digitalRead(INFRARED1);
+  Infrared_front_right = digitalRead(INFRARED2);
+  Infrared_left = digitalRead(INFRARED3);
+  Infrared_right = digitalRead(INFRARED4);
+  Infrared_back = digitalRead(INFRARED5);
+}
+
+
 void Data_update() {
   // Motor
   eps1 = motor1.ecd - motor1.last_ecd;
@@ -366,6 +376,7 @@ void Data_update() {
   // IMU
 
   // ultrasonic 
+  Get_front_distance();
 
   // gimbal
   yaw->ENC_last_ecd = yaw->ENC_ecd;
