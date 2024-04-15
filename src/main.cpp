@@ -4,6 +4,9 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <PID_v1.h>
+#include <SoftwareSerial.h>
+  SoftwareSerial arduinoSerial = SoftwareSerial(10, 11);//RX TX
+
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 32 // OLED display height, in pixels
 
@@ -11,7 +14,6 @@
 #define OLED_RESET     28 //4 // Reset pin # (or -1 if sharing Arduino reset pin)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 int oldV=1, newV=0;
-#include <SoftwareSerial.h>
 //UNO: (2, 3)
 //SoftwareSerial mySerial(4, 6); // RX, TX
 int pan = 90;
@@ -73,10 +75,14 @@ double Sonar_distance_in_cm;
 int done, start_time;
 
 #define Wheel_Radius 0.04 //m
-#define MOTOR_KP 30.0
+#define MOTOR_KP 10.0
 #define MOTOR_KI 0.05
 #define MOTOR_KD 0.1
 #define CLIP(x, min, max) if (x < min) x = min; if (x > max) x = max;
+
+//WIFI
+String  message = "";
+
 
 class DCMotor {
   private:
@@ -295,9 +301,8 @@ void motor_setup(){
 
 //Where the program starts
 void setup(){
-  SERIAL.begin(9600); // USB serial setup
+  SERIAL.begin(115200); // USB serial setup
   SERIAL.println("Start");
-  Serial3.begin(9600); // BT serial setup
   //Pan=PL4=>48, Tilt=PL5=>47
   //////////////////////////////////////////////
   //OLED Setup//////////////////////////////////
@@ -318,6 +323,11 @@ void setup(){
   //Ultrasonic Setup
   pinMode(SONAR_ECHO, INPUT);
   pinMode(SONAR_TRIG, OUTPUT);
+
+  //WiFi Setup
+  arduinoSerial.begin(9600);
+  arduinoSerial.flush();
+
 }
 
 // Sonar front distance from obstacle to car
@@ -355,11 +365,21 @@ void Grayscale_values(){
   Grayscale_middle = analogRead(GRAYSCALE3);
   Grayscale_left = analogRead(GRAYSCALE2);
   Grayscale_right = analogRead(GRAYSCALE4);
-=======
   // pinMode(A8, OUTPUT);
   // pinMode(33,OUTPUT);
   // pinMode(A10, OUTPUT);
 
+}
+
+void Esp8266_recv(){
+  if (arduinoSerial.available() > 0) {
+    while (arduinoSerial.available() > 0)
+    {
+      message = message + char(arduinoSerial.read());
+    }
+    Serial.println(message);//打印消息
+    message = "";//清除消息，大家可以试下不清除，消息是一直累加的
+  }
 }
 
 void Data_update() {
@@ -412,8 +432,8 @@ void Data_update() {
 	// if (yaw->ENC_relative_angle > 180.0f )
 	// 	yaw->ENC_relative_angle = yaw->ENC_relative_angle - 360.0f;
 	
-  // respbreey pi comm || Serial
-
+  // respbreey pi comm / Esp8266 || Serial 
+  Esp8266_recv();
 }
 
 // Motor implementation
@@ -613,12 +633,12 @@ void Gimbal_control(){
 float debug1,debug2,debug3, debug4;
 void debug(){
   //testing
-  // MOTORA_FORWARD(10);
+  // MOTORA_FORWARD(255);
   // MOTORB_FORWARD(255);
   // MOTORC_FORWARD(255);
   // MOTORD_FORWARD(255);
   Chassis_control.vx = 0.0;
-  Chassis_control.vy = 0.00;
+  Chassis_control.vy = 0.0;
   Chassis_control.wz = 0.0;
   // Serial.print("M1 ecd:");
   // Serial.println(motor1.ecd);
@@ -631,12 +651,13 @@ void debug(){
   // Serial.print("M1 pwm: ");
   // Serial.println(pwm1);
   // Serial.println(motor1.speed); // serialport debug
-  debug1 = analogRead(A8);
-  Serial.print("gray scale1: ");
-  Serial.println(debug1);
-  debug2 = analogRead(A1);
-  Serial.print("gray2: ");
-  Serial.println(debug2);
+
+  // debug1 = analogRead(A8);
+  // Serial.print("gray scale1: ");
+  // Serial.println(debug1);
+  // debug2 = analogRead(A1);
+  // Serial.print("gray2: ");
+  // Serial.println(debug2);
   // debug3 = analogRead(A15);
   // Serial.print("infrared2: ");
   // Serial.println(debug3);
@@ -650,11 +671,11 @@ void loop()
 {
   time = millis();
   Data_update();
-  Obstacle_avoidance();
-	Line_tracking();
-	Vision_tracking();
-	Arm_control();
-  Gimbal_control();
+  // Obstacle_avoidance();
+	// Line_tracking();
+	// Vision_tracking();
+	// Arm_control();
+  // Gimbal_control();
   Motor_control();
 
   //debug
