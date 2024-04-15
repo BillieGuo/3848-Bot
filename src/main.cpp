@@ -295,7 +295,7 @@ void motor_setup(){
 
 //Where the program starts
 void setup(){
-  SERIAL.begin(115200); // USB serial setup
+  SERIAL.begin(9600); // USB serial setup
   SERIAL.println("Start");
   Serial3.begin(9600); // BT serial setup
   //Pan=PL4=>48, Tilt=PL5=>47
@@ -355,6 +355,11 @@ void Grayscale_values(){
   Grayscale_middle = analogRead(GRAYSCALE3);
   Grayscale_left = analogRead(GRAYSCALE2);
   Grayscale_right = analogRead(GRAYSCALE4);
+=======
+  // pinMode(A8, OUTPUT);
+  // pinMode(33,OUTPUT);
+  // pinMode(A10, OUTPUT);
+
 }
 
 void Data_update() {
@@ -390,23 +395,25 @@ void Data_update() {
   Get_front_distance();
 
   // gimbal
-  yaw->ENC_last_ecd = yaw->ENC_ecd;
-  // ENC angle?
-	yaw->INS_angle = INS_angle_deg[0] - yaw->INS_angle_offset; // -180<angle_deg<180
+  // yaw->ENC_last_ecd = yaw->ENC_ecd;
+  // // ENC angle?
+	// yaw->INS_angle = INS_angle_deg[0] - yaw->INS_angle_offset; // -180<angle_deg<180
 	
-	if ( yaw->INS_angle > 180.0f)
-		yaw->INS_angle = yaw->INS_angle - 360.0f;
-	if ( yaw->INS_angle < -180.0f)
-		yaw->INS_angle = yaw->INS_angle + 360.0f;
+	// if ( yaw->INS_angle > 180.0f)
+	// 	yaw->INS_angle = yaw->INS_angle - 360.0f;
+	// if ( yaw->INS_angle < -180.0f)
+	// 	yaw->INS_angle = yaw->INS_angle + 360.0f;
 	
-	yaw->ENC_angle = ( yaw->ENC_ecd / 65535.0f * 360.0f + yaw->ENC_round_cnt * 360.0f );
-	yaw->origin = (YAW_MOTOR_INIT_POS / 65535.0f) * 360.0f + ( yaw->ENC_round_cnt * 360.0f );
-	yaw->ENC_relative_angle = yaw->ENC_angle - yaw->origin;
-	if (yaw->ENC_relative_angle < -180.0f )
-		yaw->ENC_relative_angle = 360.0f + yaw->ENC_relative_angle;
-	if (yaw->ENC_relative_angle > 180.0f )
-		yaw->ENC_relative_angle = yaw->ENC_relative_angle - 360.0f;
-			
+	// yaw->ENC_angle = ( yaw->ENC_ecd / 65535.0f * 360.0f + yaw->ENC_round_cnt * 360.0f );
+	// yaw->origin = (YAW_MOTOR_INIT_POS / 65535.0f) * 360.0f + ( yaw->ENC_round_cnt * 360.0f );
+	// yaw->ENC_relative_angle = yaw->ENC_angle - yaw->origin;
+	// if (yaw->ENC_relative_angle < -180.0f )
+	// 	yaw->ENC_relative_angle = 360.0f + yaw->ENC_relative_angle;
+	// if (yaw->ENC_relative_angle > 180.0f )
+	// 	yaw->ENC_relative_angle = yaw->ENC_relative_angle - 360.0f;
+	
+  // respbreey pi comm || Serial
+
 }
 
 // Motor implementation
@@ -655,14 +662,14 @@ void Gimbal_control(){
   // servo control
 }
 
-float debug1,debug2;
+float debug1,debug2,debug3, debug4;
 void debug(){
   //testing
   // MOTORA_FORWARD(10);
   // MOTORB_FORWARD(255);
   // MOTORC_FORWARD(255);
   // MOTORD_FORWARD(255);
-  Chassis_control.vx = -0.10;
+  Chassis_control.vx = 0.0;
   Chassis_control.vy = 0.00;
   Chassis_control.wz = 0.0;
   // Serial.print("M1 ecd:");
@@ -676,6 +683,19 @@ void debug(){
   // Serial.print("M1 pwm: ");
   // Serial.println(pwm1);
   // Serial.println(motor1.speed); // serialport debug
+  debug1 = analogRead(A8);
+  Serial.print("gray scale1: ");
+  Serial.println(debug1);
+  debug2 = analogRead(A1);
+  Serial.print("gray2: ");
+  Serial.println(debug2);
+  // debug3 = analogRead(A15);
+  // Serial.print("infrared2: ");
+  // Serial.println(debug3);
+  // debug3 = digitalRead(33);
+  // Serial.print("infrared2 D: ");
+  // Serial.println(debug4);
+
 }
 
 void loop()
