@@ -114,10 +114,10 @@ class Chassis_control_t {
 } Chassis_control;
 
 
-const double EPRA = 660;//转速比：1：660
-const double EPRB = 660;//转速比：1：660
-const double EPRC = 660;//转速比：1：660
-const double EPRD = 660;//转速比：1：660
+const double EPRA = 660;//�?速比�?1�?660
+const double EPRB = 660;//�?速比�?1�?660
+const double EPRC = 660;//�?速比�?1�?660
+const double EPRD = 660;//�?速比�?1�?660
 
 const int pwmPin1 = 12; const int dir1A = 34; const int dir1B = 35; const int encoder1A = 18; const int encoder1B = 31; // A M1
 const int pwmPin2 = 8; const int dir2A = 37; const int dir2B = 36; const int encoder2A = 19; const int encoder2B = 38; // B M2
@@ -378,7 +378,7 @@ void Esp8266_recv(){
       message = message + char(arduinoSerial.read());
     }
     Serial.println(message);//打印消息
-    message = "";//清除消息，大家可以试下不清除，消息是一直累加的
+    message = "";//清除消息，大家可以试下不清除，消�?�?一直累加的
   }
 }
 
@@ -482,10 +482,16 @@ void Motor_control(){
   motor4.setMotor(pwm4);
 }
 
+void Move(double x, double y, double z){ // control car movement by setting x, y, z
+  Chassis_control.vx = x;
+  Chassis_control.vy = y;
+  Chassis_control.wz = z;
+}
+
 void Obstacle_avoidance(){
   // infrared 7.5 cm 
   // combine all infrared sensor states to one value
-  int Infrared_combined = 00000;
+  int Infrared_combined = 0b00000;
   if (!Infrared_front_left){ // front left infrared sensor detect obstacle, lowest digit = 1
     Infrared_combined = Infrared_combined | 0b00001;
   }
@@ -503,171 +509,228 @@ void Obstacle_avoidance(){
   }
 
   switch (Infrared_combined) {
-    case 0b00000: //no obstacle
-      Chassis_control.vx = 0.10;
-      Chassis_control.vy = 0.0;
-      Chassis_control.wz = 0.0;
-      break;
+    // case 0b00000: //no obstacle
+    //   Move(0.10, 0.0, 0.0);
+    //   break;
     case 0b00001: //front left, move towards right
-      Chassis_control.vx = 0.0;
-      Chassis_control.vy = 0.05;
-      Chassis_control.wz = 0.0;
+      Move(0.0, 0.05, 0.0);
       break;
     case 0b00010: //front right, move towards left
-      Chassis_control.vx = 0.0;
-      Chassis_control.vy = -0.05;
-      Chassis_control.wz = 0.0;
+      Move(0.0, -0.05, 0.0);
       break;
     case 0b00011: //front left and front right, move towards left
-      Chassis_control.vx = 0.0;
-      Chassis_control.vy = -0.05;
-      Chassis_control.wz = 0.0;
+      Move(0.0, -0.05, 0.0);
       break;
-    case 0b00100: //left, go straigt
-      Chassis_control.vx = 0.10;
-      Chassis_control.vy = 0.0;
-      Chassis_control.wz = 0.0;
-      break;
+    // case 0b00100: //left, go straigt
+    //   Move(0.10, 0.0, 0.0);
+    //   break;
     case 0b00101: //left and front left, move towards right
-      Chassis_control.vx = 0.0;
-      Chassis_control.vy = 0.05;
-      Chassis_control.wz = 0.0;
+      Move(0.0, 0.05, 0.0);
       break;
     case 0b00110: //left and front right, move towards right // actually not possible?
-      Chassis_control.vx = 0.0;
-      Chassis_control.vy = 0.05;
-      Chassis_control.wz = 0.0;
+      Move(0.0, 0.05, 0.0);
       break;
     case 0b00111: //left, front left and front right, move towards right
-      Chassis_control.vx = 0.0;
-      Chassis_control.vy = 0.05;
-      Chassis_control.wz = 0.0;
+      Move(0.0, 0.05, 0.0);
       break;
-    case 0b01000: //right, go straight
-      Chassis_control.vx = 0.10;
-      Chassis_control.vy = 0.0;
-      Chassis_control.wz = 0.0;
-      break;
+    // case 0b01000: //right, go straight
+    //   Move(0.10, 0.0, 0.0);
+    //   break;
     case 0b01001: //right and front left, move towards left // actually not possible?
-      Chassis_control.vx = 0.0;
-      Chassis_control.vy = -0.05;
-      Chassis_control.wz = 0.0;
+      Move(0.0, 0.05, 0.0);
       break;
     case 0b01010: //right and front right, move towards left 
-      Chassis_control.vx = 0.0;
-      Chassis_control.vy = -0.05;
-      Chassis_control.wz = 0.0;
+      Move(0.0, 0.05, 0.0);
       break;
     case 0b01011: //right, front left and front right, move towards left
-      Chassis_control.vx = 0.0;
-      Chassis_control.vy = -0.05;
-      Chassis_control.wz = 0.0;
+      Move(0.0, 0.05, 0.0);
       break;
-    case 0b01100: //right and left, go straigt
-      Chassis_control.vx = 0.10;
-      Chassis_control.vy = 0.0;
-      Chassis_control.wz = 0.0;
-      break;
+    // case 0b01100: //right and left, go straigt
+    //   Move(0.10, 0.0, 0.0);
+    //   break;
     case 0b01101: //right, left and front left, move backward
-      Chassis_control.vx = -0.05;
-      Chassis_control.vy = 0.0;
-      Chassis_control.wz = 0.0;
+      Move(-0.05, 0.0, 0.0);
       break;
     case 0b01110: //right, left and front right, move backward
-      Chassis_control.vx = -0.05;
-      Chassis_control.vy = 0.0;
-      Chassis_control.wz = 0.0;
+      Move(-0.05, 0.0, 0.0);
       break;
     case 0b01111: //right, left, front left and front right, move backward
-      Chassis_control.vx = -0.05;
-      Chassis_control.vy = 0.0;
-      Chassis_control.wz = 0.0;
+      Move(-0.05, 0.0, 0.0);
       break;
-    case 0b10000: //back, go straight
-      Chassis_control.vx = 0.10;
-      Chassis_control.vy = 0.0;
-      Chassis_control.wz = 0.0;
-      break;
+    // case 0b10000: //back, go straight
+    //   Move(0.10, 0.0, 0.0);
+    //   break;
     case 0b10001: //back and front left, move forward right
-      Chassis_control.vx = 0.05;
-      Chassis_control.vy = 0.05;
-      Chassis_control.wz = 0.0;
+      Move(0.05, 0.05, 0.0);
       break;
     case 0b10010: //back and front right, move forward left
-      Chassis_control.vx = 0.05;
-      Chassis_control.vy = -0.05;
-      Chassis_control.wz = 0.0;
+      Move(0.05, -0.05, 0.0);
       break;
     case 0b10011: //back, front left and front right, move towards left
-      Chassis_control.vx = 0.0;
-      Chassis_control.vy = -0.05;
-      Chassis_control.wz = 0.0;
+      Move(0.0, -0.05, 0.0);
       break;
-    case 0b10100: //back and left, go straight
-      Chassis_control.vx = 0.10;
-      Chassis_control.vy = 0.0;
-      Chassis_control.wz = 0.0;
-      break;
+    // case 0b10100: //back and left, go straight
+    //   Move(0.10, 0.0, 0.0);
+    //   break;
     case 0b10101: //back, left and front left, move towards right
-      Chassis_control.vx = 0.0;
-      Chassis_control.vy = 0.05;
-      Chassis_control.wz = 0.0;
+      Move(0.0, 0.05, 0.0);
       break;
     case 0b10110: //back, left and front right, move towards right  // actually not possible?
-      Chassis_control.vx = 0.0;
-      Chassis_control.vy = 0.05;
-      Chassis_control.wz = 0.0;
+      Move(0.0, 0.05, 0.0);
       break;
     case 0b10111: //back, left, front left and front right, move towards right
-      Chassis_control.vx = 0.0;
-      Chassis_control.vy = 0.05;
-      Chassis_control.wz = 0.0;
+      Move(0.0, 0.05, 0.0);
       break;
-    case 0b11000: //back and right, go straight
-      Chassis_control.vx = 0.10;
-      Chassis_control.vy = 0.0;
-      Chassis_control.wz = 0.0;
-      break;
+    // case 0b11000: //back and right, go straight
+    //   Move(0.10, 0.0, 0.0);
+    //   break;
     case 0b11001: //back, right and front left, move towards left // actually not possible?
-      Chassis_control.vx = 0.0;
-      Chassis_control.vy = 0.05;
-      Chassis_control.wz = 0.0;
+      Move(0.0, 0.05, 0.0);
       break;
     case 0b11010: //back, right and front right, move towards left
-      Chassis_control.vx = 0.0;
-      Chassis_control.vy = 0.05;
-      Chassis_control.wz = 0.0;
+      Move(0.0, -0.05, 0.0);
       break;
     case 0b11011: //back, right, front left and front right, move towards left
-      Chassis_control.vx = 0.0;
-      Chassis_control.vy = 0.05;
-      Chassis_control.wz = 0.0;
+      Move(0.0, -0.05, 0.0);
       break;
-    case 0b11100: //back, right and left, go straight
-      Chassis_control.vx = 0.10;
-      Chassis_control.vy = 0.0;
-      Chassis_control.wz = 0.0;
-      break;
+    // case 0b11100: //back, right and left, go straight
+    //   Move(0.10, 0.0, 0.0);
+    //   break;
     case 0b11101: //back, right, left and front left, move forward right // actually not possible?
-      Chassis_control.vx = 0.05;
-      Chassis_control.vy = 0.05;
-      Chassis_control.wz = 0.0;
+      Move(0.05, 0.05, 0.0);
       break;
     case 0b11110: //back, right, left and front right, move forward left // actually not possible?
-      Chassis_control.vx = 0.05;
-      Chassis_control.vy = -0.05;
-      Chassis_control.wz = 0.0;
+      Move(0.05, -0.05, 0.0);
       break;
     case 0b11111: //back, right, left, front left and front right, can only stop // actually not possible?
-      Chassis_control.vx = 0.0;
-      Chassis_control.vy = 0.0;
-      Chassis_control.wz = 0.0;
+      Move(0.0, 0.0, 0.0);
+      break;
+    default:
+      Move(0.10, 0.0, 0.0);
       break;
   }
 }
 
 void Line_tracking(){
   // gray scale detect 0.1 cm tolerance
+  // combine all grayscale sensor states to one value
+  int Grayscale_combined = 0b00000;
+  if (Grayscale_right > 930) { // right most grayscale sensor detect white line, lowest digit = 1
+    Grayscale_combined = Grayscale_combined | 0b00001;
+  }
+  if (Grayscale_middle_right > 930) { // right second grayscale sensor detect white line, second lowest digit = 1
+    Grayscale_combined = Grayscale_combined | 0b00010;
+  }
+  if (Grayscale_middle > 930) { // middle grayscale sensor detect white line, third lowest digit = 1
+    Grayscale_combined = Grayscale_combined | 0b00100;
+  }
+  if (Grayscale_middle_left > 930) { // left second grayscale sensor detect white line, fourth lowest digit = 1
+    Grayscale_combined = Grayscale_combined | 0b01000;
+  }
+  if (Grayscale_left > 930) { // left most grayscale sensor detect white line, highest digit = 1
+    Grayscale_combined = Grayscale_combined | 0b10000;
+  }
+  switch (Grayscale_combined){
+    // case 0b00000: // no white line detected
+    //   Move(0.10, 0.0, 0.0); // go straight
+    //   break;
+    case 0b00001: // only right most detect white, may be court edge, move towards right
+      Move(0.0, 0.05, 0.0);
+      break;
+    // case 0b00010: // only middle right detect white, not court edge, ignore
+    //   Move(0.10, 0.0, 0.0); // go straight
+    //   break;
+    case 0b00011: // right most and middle right detect white, may be court edge, move towards right
+      Move(0.0, 0.05, 0.0);
+      break;
+    // case 0b00100: // only middle detect white, not court edge, ignore
+    //   Move(0.10, 0.0, 0.0); // go straight
+    //   break;
+    // case 0b00101: // middle and right most detect white, not court edge, ignore
+    //   Move(0.10, 0.0, 0.0); // go straight
+    //   break;
+    case 0b00110: // middle and middle right detect white, may be court edge, move towards right
+      Move(0.0, 0.05, 0.0);
+      break;
+    case 0b00111: // middle, middle right and right most detect white, may be court edge, move towards right
+      Move(0.0, 0.05, 0.0);
+      break;
+    // case 0b01000: // only middle left detect white, not court edge, ignore
+    //   Move(0.10, 0.0, 0.0); // go straight
+    //   break;
+    // case 0b01001: // middle left and right most detect white, not court edge, ignore
+    //   Move(0.10, 0.0, 0.0); // go straight
+    //   break;
+    // case 0b01010: // middle left and middle right detect white, not court edge, ignore
+    //   Move(0.10, 0.0, 0.0); // go straight
+    //   break;
+    // case 0b01011: // middle left, middle right and right most detect white, not court edge, ignore
+    //   Move(0.10, 0.0, 0.0); // go straight
+    //   break;
+    case 0b01100: // middle left detect white, may be court edge, move towards left
+      Move(0.0, -0.05, 0.0);
+      break;
+    // case 0b01101: // middle left, middle and right most detect white, not court edge, ignore
+    //   Move(0.10, 0.0, 0.0); // go straight
+    //   break;
+    // case 0b01110: // middle three detect white, court edge (middle part)
+    //   Move(0.10, 0.0, 0.0); // go straight
+    //   break;
+    case 0b01111: // middle three + right most detect white, court edge (right corner)
+      Move(0.0, 0.0, -0.10) // rotate left 90 degree
+      break;
+    case 0b10000: // only left most detect white, may be court edge, move towards left
+      Move(0.0, -0.05, 0.0);
+      break;
+    // case 0b10001: // left most and right most detect white, not court edge, ignore
+    //   Move(0.10, 0.0, 0.0); // go straight
+    //   break;
+    // case 0b10010: // left most and middle right detect white, not court edge, ignore
+    //   Move(0.10, 0.0, 0.0); // go straight
+    //   break;
+    // case 0b10011: // left most, middle right and right most detect white, not court edge, ignore
+    //   Move(0.10, 0.0, 0.0); // go straight
+    //   break;
+    // case 0b10100: // left most and middle detect white, not court edge, ignore
+    //   Move(0.10, 0.0, 0.0); // go straight
+    //   break;
+    // case 0b10101: // left most, middle and right most detect white, not court edge, ignore
+    //   Move(0.10, 0.0, 0.0); // go straight
+    //   break;
+    // case 0b10110: // left most, middle right and middle detect white, not court edge, ignore
+    //   Move(0.10, 0.0, 0.0); // go straight
+    //   break;
+    case 0b10111: // left most, middle, middle right and right detect white, may be court edge, move towards right
+      Move(0.0, 0.05, 0.0);
+      break;
+    case 0b11000: // left most and middle left detect white, may be court edge, move towards left
+      Move(0.0, -0.05, 0.0);
+      break;
+    // case 0b11001: // left most, middle left and right most detect white, not court edge, ignore
+    //   Move(0.10, 0.0, 0.0); // go straight
+    //   break;
+    // case 0b11010: // left most, middle left and middle right detect white, not court edge, ignore
+    //   Move(0.10, 0.0, 0.0); // go straight
+    //   break;
+    // case 0b11011: // left most, middle left, middle right and right most detect white, not court edge, ignore
+    //   Move(0.10, 0.0, 0.0); // go straight
+    //   break;
+    case 0b11100: // left most, middle left and middle detect white, may be court edge, move towards left
+      Move(0.0, -0.05, 0.0);
+      break;
+    case 0b11101: // left most, middle left, middle and right most detect white, may be court edge, move towards left
+      Move(0.0, -0.05, 0.0);
+      break;
+    case 0b11110: // left most + middle three, court edge (left corner)
+      Move(0.0, 0.0, 0.10) // rotate right 90 degree
+      break;
+    // case 0b11111: // all detect white, court edge (crossroad)
+    //   Move(0.10, 0.0, 0.0); // go straight
+    //   break;
+    default:
+      Move(0.10, 0.0, 0.0); // go straight
+      break;
+  }
 }
 
 void Vision_tracking(){
