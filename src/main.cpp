@@ -47,6 +47,30 @@ int MIN_VALUE = 300;
   BELOW BY GROUP C4-C
 */
 
+//infrared sensors
+#define INFRARED1 38 //front left PD7
+#define INFRARED2 41 //front right PG0
+#define INFRARED3 40 //left PG1
+#define INFRARED4 37 //right PC0
+#define INFRARED5 36 //back PC1
+bool Infrared_front_left, Infrared_front_right;
+bool Infrared_left, Infrared_right, Infrared_back;
+
+//grayscale sensors
+#define GRAYSCALE1 A1 //left most PF1
+#define GRAYSCALE2 A2 //left second PF2
+#define GRAYSCALE3 A3 //middle PF3
+#define GRAYSCALE4 A4 //right second PF4
+#define GRAYSCALE5 A5 //right most PF5
+double Grayscale_middle_left, Grayscale_middle_right;
+double Grayscale_middle;
+double Grayscale_left, Grayscale_right;
+
+//ultrasonic sensors
+#define SONAR_TRIG 29 //PA7
+#define SONAR_ECHO 28 //PA6
+double Sonar_distance_in_cm;
+int done, start_time;
 
 #define Wheel_Radius 0.04 //m
 #define MOTOR_KP 30.0
@@ -290,9 +314,52 @@ void setup(){
 
   //Motor Setup
   motor_setup();
+
+  //Ultrasonic Setup
+  pinMode(SONAR_ECHO, INPUT);
+  pinMode(SONAR_TRIG, OUTPUT);
+}
+
+// Sonar front distance from obstacle to car
+void Get_front_distance(){
+  long Sonar_duration;
+  if (done){
+    done = false;
+    start_time = millis();
+    digitalWrite(SONAR_TRIG, LOW); 
+  }
+  if (millis() - start_time > 2){
+    digitalWrite(SONAR_TRIG, HIGH);
+  }
+  if (millis() - start_time > 10){
+    digitalWrite(SONAR_TRIG, LOW);
+    Sonar_duration = pulseIn(SONAR_ECHO, HIGH);
+    Sonar_distance_in_cm = (Sonar_duration/2.0) / 29.1;
+    done = true;
+  }
+}
+
+// Infrared detection
+void Infrared_states(){
+  Infrared_front_left = digitalRead(INFRARED1);
+  Infrared_front_right = digitalRead(INFRARED2);
+  Infrared_left = digitalRead(INFRARED3);
+  Infrared_right = digitalRead(INFRARED4);
+  Infrared_back = digitalRead(INFRARED5);
+}
+
+// Grayscale detection
+void Grayscale_values(){
+  Grayscale_middle_left = analogRead(GRAYSCALE1);
+  Grayscale_middle_right = analogRead(GRAYSCALE5);
+  Grayscale_middle = analogRead(GRAYSCALE3);
+  Grayscale_left = analogRead(GRAYSCALE2);
+  Grayscale_right = analogRead(GRAYSCALE4);
+=======
   // pinMode(A8, OUTPUT);
   // pinMode(33,OUTPUT);
   // pinMode(A10, OUTPUT);
+
 }
 
 void Data_update() {
@@ -315,12 +382,17 @@ void Data_update() {
   motor4.speed = eps4 * Wheel_Radius / EPRD * 100;
 
   // infrared
+  Infrared_states();
 
   // gray scale detect
+  Grayscale_values();
 
   // vision detect
   
   // IMU
+
+  // ultrasonic 
+  Get_front_distance();
 
   // gimbal
   // yaw->ENC_last_ecd = yaw->ENC_ecd;
@@ -392,6 +464,186 @@ void Motor_control(){
 
 void Obstacle_avoidance(){
   // infrared 7.5 cm 
+  // combine all infrared sensor states to one value
+  int Infrared_combined = 00000;
+  if (!Infrared_front_left){ // front left infrared sensor detect obstacle, lowest digit = 1
+    Infrared_combined = Infrared_combined | 0b00001;
+  }
+  if (!Infrared_front_right){ // front right infrared sensor detect obstacle, second lowest digit = 1
+    Infrared_combined = Infrared_combined | 0b00010;
+  }
+  if (!Infrared_left){ // left infrared sensor detect obstacle, third lowest digit = 1
+    Infrared_combined = Infrared_combined | 0b00100;
+  }
+  if (!Infrared_right){ // right infrared sensor detect obstacle, fourth lowest digit = 1
+    Infrared_combined = Infrared_combined | 0b01000;
+  }
+  if (!Infrared_back){ // back infrared sensor detect obstacle, highest digit = 1
+    Infrared_combined = Infrared_combined | 0b10000;
+  }
+
+  switch (Infrared_combined) {
+    case 0b00000: //no obstacle
+      Chassis_control.vx = 0.10;
+      Chassis_control.vy = 0.0;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b00001: //front left, move towards right
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = 0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b00010: //front right, move towards left
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = -0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b00011: //front left and front right, move towards left
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = -0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b00100: //left, go straigt
+      Chassis_control.vx = 0.10;
+      Chassis_control.vy = 0.0;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b00101: //left and front left, move towards right
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = 0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b00110: //left and front right, move towards right // actually not possible?
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = 0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b00111: //left, front left and front right, move towards right
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = 0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b01000: //right, go straight
+      Chassis_control.vx = 0.10;
+      Chassis_control.vy = 0.0;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b01001: //right and front left, move towards left // actually not possible?
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = -0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b01010: //right and front right, move towards left 
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = -0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b01011: //right, front left and front right, move towards left
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = -0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b01100: //right and left, go straigt
+      Chassis_control.vx = 0.10;
+      Chassis_control.vy = 0.0;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b01101: //right, left and front left, move backward
+      Chassis_control.vx = -0.05;
+      Chassis_control.vy = 0.0;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b01110: //right, left and front right, move backward
+      Chassis_control.vx = -0.05;
+      Chassis_control.vy = 0.0;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b01111: //right, left, front left and front right, move backward
+      Chassis_control.vx = -0.05;
+      Chassis_control.vy = 0.0;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b10000: //back, go straight
+      Chassis_control.vx = 0.10;
+      Chassis_control.vy = 0.0;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b10001: //back and front left, move forward right
+      Chassis_control.vx = 0.05;
+      Chassis_control.vy = 0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b10010: //back and front right, move forward left
+      Chassis_control.vx = 0.05;
+      Chassis_control.vy = -0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b10011: //back, front left and front right, move towards left
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = -0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b10100: //back and left, go straight
+      Chassis_control.vx = 0.10;
+      Chassis_control.vy = 0.0;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b10101: //back, left and front left, move towards right
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = 0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b10110: //back, left and front right, move towards right  // actually not possible?
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = 0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b10111: //back, left, front left and front right, move towards right
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = 0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b11000: //back and right, go straight
+      Chassis_control.vx = 0.10;
+      Chassis_control.vy = 0.0;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b11001: //back, right and front left, move towards left // actually not possible?
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = 0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b11010: //back, right and front right, move towards left
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = 0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b11011: //back, right, front left and front right, move towards left
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = 0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b11100: //back, right and left, go straight
+      Chassis_control.vx = 0.10;
+      Chassis_control.vy = 0.0;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b11101: //back, right, left and front left, move forward right // actually not possible?
+      Chassis_control.vx = 0.05;
+      Chassis_control.vy = 0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b11110: //back, right, left and front right, move forward left // actually not possible?
+      Chassis_control.vx = 0.05;
+      Chassis_control.vy = -0.05;
+      Chassis_control.wz = 0.0;
+      break;
+    case 0b11111: //back, right, left, front left and front right, can only stop // actually not possible?
+      Chassis_control.vx = 0.0;
+      Chassis_control.vy = 0.0;
+      Chassis_control.wz = 0.0;
+      break;
+  }
 }
 
 void Line_tracking(){
@@ -449,7 +701,6 @@ void debug(){
 void loop()
 {
   time = millis();
-
   Data_update();
   Obstacle_avoidance();
 	Line_tracking();
