@@ -75,9 +75,9 @@ double Sonar_distance_in_cm;
 int done, start_time;
 
 #define Wheel_Radius 0.04 //m
-#define MOTOR_KP 10.0
-#define MOTOR_KI 0.05
-#define MOTOR_KD 0.1
+#define MOTOR_KP 0.15
+#define MOTOR_KI 0.0
+#define MOTOR_KD 0.0
 #define CLIP(x, min, max) if (x < min) x = min; if (x > max) x = max;
 
 //WIFI
@@ -97,6 +97,8 @@ class DCMotor {
       double last_ecd;
       double speed;
       double speed_set;
+      double pwm;
+      double pwm_set;
 
       DCMotor(int pwm, int dirA, int dirB, int encoderA, int encoderB);
       void setMotor(int analogSpeed);
@@ -158,6 +160,10 @@ PID motorPID1(&motor1.speed, &pidout1, &motor1.speed_set, MOTOR_KP, MOTOR_KI, MO
 PID motorPID2(&motor2.speed, &pidout2, &motor2.speed_set, MOTOR_KP, MOTOR_KI, MOTOR_KD, DIRECT);
 PID motorPID3(&motor3.speed, &pidout3, &motor3.speed_set, MOTOR_KP, MOTOR_KI, MOTOR_KD, DIRECT);
 PID motorPID4(&motor4.speed, &pidout4, &motor4.speed_set, MOTOR_KP, MOTOR_KI, MOTOR_KD, DIRECT);
+// PID motorPID1(&motor1.pwm, &pidout1, &motor1.pwm_set, MOTOR_KP, MOTOR_KI, MOTOR_KD, DIRECT);
+// PID motorPID2(&motor2.pwm, &pidout2, &motor2.pwm_set, MOTOR_KP, MOTOR_KI, MOTOR_KD, DIRECT);
+// PID motorPID3(&motor3.pwm, &pidout3, &motor3.pwm_set, MOTOR_KP, MOTOR_KI, MOTOR_KD, DIRECT);
+// PID motorPID4(&motor4.pwm, &pidout4, &motor4.pwm_set, MOTOR_KP, MOTOR_KI, MOTOR_KD, DIRECT);
 
 
 DCMotor::DCMotor(int pwm, int dirA, int dirB, int encoderA, int encoderB) : 
@@ -398,6 +404,10 @@ void Data_update() {
   motor2.speed = eps2 * Wheel_Radius / EPRB * 100;
   motor3.speed = eps3 * Wheel_Radius / EPRC * 100; 
   motor4.speed = eps4 * Wheel_Radius / EPRD * 100;
+  motor1.pwm = motor1.speed / 20.0 * 255;
+  motor2.pwm = motor2.speed / 20.0 * 255;
+  motor3.pwm = motor3.speed / 20.0 * 255;
+  motor4.pwm = motor4.speed / 20.0 * 255;
 
   // infrared
   Infrared_states();
@@ -431,7 +441,7 @@ void Data_update() {
 	// 	yaw->ENC_relative_angle = yaw->ENC_relative_angle - 360.0f;
 	
   // respbreey pi comm / Esp8266 || Serial 
-  Esp8266_recv();
+  // Esp8266_recv();
 }
 
 // Motor implementation
@@ -444,14 +454,18 @@ void Data_update() {
 // wz -> rotate CW
 void Chassis_Vector_to_Mecanum_Wheel_Speed(double vx, double vy, double wz){
   double wheel_speed[4];
-  wheel_speed[0] = -vy + vx - wz;
-  wheel_speed[1] = vy + vx - wz;  
-  wheel_speed[2] = -vy - vx - wz;
-  wheel_speed[3] = vy - vx - wz;
+  wheel_speed[0] = -vy - vx - wz;
+  wheel_speed[1] = vy - vx - wz;  
+  wheel_speed[2] = -vy + vx - wz;
+  wheel_speed[3] = vy + vx - wz;
   motor1.speed_set = wheel_speed[0];
   motor2.speed_set = wheel_speed[1];
   motor3.speed_set = wheel_speed[2];
   motor4.speed_set = wheel_speed[3];
+  motor1.pwm_set = wheel_speed[0] / 20.0 * 255;
+  motor2.pwm_set = wheel_speed[1] / 20.0 * 255;
+  motor3.pwm_set = wheel_speed[2] / 20.0 * 255;
+  motor4.pwm_set = wheel_speed[3] / 20.0 * 255;
 }
 
 // speed of motor 0-0.36m/s from pwm 0-255
@@ -466,18 +480,30 @@ void Motor_control(){
   motorPID2.Compute();
   motorPID3.Compute();
   motorPID4.Compute();
-  pwm1 = pidout1 / 0.36 * 255;
-  pwm2 = pidout2 / 0.36 * 255;
-  pwm3 = pidout3 / 0.36 * 255;
-  pwm4 = pidout4 / 0.36 * 255;
-  CLIP(pwm1, -255, 255)
-  CLIP(pwm2, -255, 255)
-  CLIP(pwm3, -255, 255)
-  CLIP(pwm4, -255, 255)
+  pidout1 = pidout1 / 20.0 * 255;
+  pidout2 = pidout2 / 20.0 * 255;
+  pidout3 = pidout3 / 20.0 * 255;
+  pidout4 = pidout4 / 20.0 * 255;
+  pwm1 = motor1.speed_set / 20.0 * 255;
+  pwm2 = motor2.speed_set / 20.0 * 255;
+  pwm3 = motor3.speed_set / 20.0 * 255;
+  pwm4 = motor4.speed_set / 20.0 * 255;
+  // pwm1 = pwm1 + pidout1;
+  // pwm2 = pwm2 + pidout2;
+  // pwm3 = pwm3 + pidout3;
+  // pwm4 = pwm4 + pidout4;
+  CLIP(pwm1, -255, 255);
+  CLIP(pwm2, -255, 255);
+  CLIP(pwm3, -255, 255);
+  CLIP(pwm4, -255, 255);
   motor1.setMotor(pwm1);
   motor2.setMotor(pwm2);
   motor3.setMotor(pwm3);
   motor4.setMotor(pwm4);
+  // motor1.setMotor(pidout1);
+  // motor2.setMotor(pidout2);
+  // motor3.setMotor(pidout3);
+  // motor4.setMotor(pidout4);
 }
 
 void Move(double x, double y, double z){ // control car movement by setting x, y, z
@@ -746,23 +772,25 @@ void Gimbal_control(){
 float debug1,debug2,debug3, debug4;
 void debug(){
   //testing
-  // MOTORA_FORWARD(255);
+  // MOTORA_FORWARD(130);
   // MOTORB_FORWARD(255);
   // MOTORC_FORWARD(255);
   // MOTORD_FORWARD(255);
-  Chassis_control.vx = 0.0;
+  Chassis_control.vx = 10.0;
   Chassis_control.vy = 0.0;
   Chassis_control.wz = 0.0;
-  // Serial.print("M1 ecd:");
-  // Serial.println(motor1.ecd);
-  // Serial.print("M1 speed:");
-  // Serial.println(motor1.speed);
-  // Serial.print("M1 speed_set: ");
-  // Serial.println(motor1.speed_set);
-  // Serial.print("M1 pidout: ");
-  // Serial.println(pidout1);
-  // Serial.print("M1 pwm: ");
-  // Serial.println(pwm1);
+  Serial.print("M1 ecd:");
+  Serial.println(motor1.ecd);
+  Serial.print("M1 speed:");
+  Serial.println(motor1.speed);
+  Serial.print("M1 speed_set: ");
+  Serial.println(motor1.speed_set);
+  Serial.print("M1 pidout: ");
+  Serial.println(pidout1);
+  Serial.print("M1 pwm: ");
+  Serial.println(motor1.pwm);
+  Serial.println("M1 pwm_set: ");
+  Serial.println(motor1.speed_set / 20.0 * 255);
   // Serial.println(motor1.speed); // serialport debug
 
   // debug1 = analogRead(A8);
