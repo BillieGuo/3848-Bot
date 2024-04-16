@@ -373,12 +373,10 @@ void Grayscale_values(){
 
 void Esp8266_recv(){
   if (arduinoSerial.available() > 0) {
-    while (arduinoSerial.available() > 0)
-    {
-      message = message + char(arduinoSerial.read());
-    }
-    Serial.println(message);//打印消息
-    message = "";//清除消息，大家可以试下不清除，消�?�?一直累加的
+      message = arduinoSerial.readString();
+      delay(1);
+    Serial.println(message);
+    message = "";
   }
 }
 
@@ -677,7 +675,7 @@ void Line_tracking(){
     //   Move(0.10, 0.0, 0.0); // go straight
     //   break;
     case 0b01111: // middle three + right most detect white, court edge (right corner)
-      Move(0.0, 0.0, -0.10) // rotate left 90 degree
+      Move(0.0, 0.0, -0.10); // rotate left 90 degree
       break;
     case 0b10000: // only left most detect white, may be court edge, move towards left
       Move(0.0, -0.05, 0.0);
@@ -722,7 +720,7 @@ void Line_tracking(){
       Move(0.0, -0.05, 0.0);
       break;
     case 0b11110: // left most + middle three, court edge (left corner)
-      Move(0.0, 0.0, 0.10) // rotate right 90 degree
+      Move(0.0, 0.0, 0.10); // rotate right 90 degree
       break;
     // case 0b11111: // all detect white, court edge (crossroad)
     //   Move(0.10, 0.0, 0.0); // go straight
