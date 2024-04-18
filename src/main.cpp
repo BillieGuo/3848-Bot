@@ -49,6 +49,15 @@ int MIN_VALUE = 300;
 /*
   BELOW BY GROUP C4-C
 */
+// enum class for states with different function executions
+enum class Mode {
+  NORMAL, // Obstacle avoidance + Line tracking + Tennis ball detection + Wifi communication
+  OBSTACLE_DETECTED, // -line tracking, when obstacle detected
+  TENNIS_DETECTED, // -obstacle avoidance, when tennis ball detected but not catched
+  CATCHING, // +Tennis ball catch, -obstacle avoidance, -line tracking, when catching tennis ball
+  CATCHED// +Tennis ball catch, when tennis ball catched by arm
+};
+
 
 //infrared sensors
 #define INFRARED1 25 //front left PA3
@@ -74,6 +83,14 @@ double Grayscale_left, Grayscale_right;
 #define SONAR_ECHO 28 //PA6
 double Sonar_distance_in_cm;
 int done, start_time;
+
+//flags to determine whether other functions should be executed
+bool Obstacle_flag = false;
+// bool Line_flag = false;
+bool Tennis_flag = false;
+bool Catching_flag = false;
+bool Catched_flag = false;
+
 
 #define Wheel_Radius 0.04 //m
 #define MOTOR_KP 0.15
@@ -340,13 +357,8 @@ void setup(){
   arduinoSerial.begin(9600);
   arduinoSerial.flush();
 
-  //Servo Setup
-  servo1.attach(SERVO1Pin);
-  servo1.write(150); //Set position
-
-  //debug 
-
-
+  //Mode Setup
+  Mode = Mode::NORMAL; // original mode == NORMAL
 }
 
 // Sonar front distance from obstacle to car
@@ -527,18 +539,26 @@ void Obstacle_avoidance(){
   int Infrared_combined = 0b00000;
   if (!Infrared_front_left){ // front left infrared sensor detect obstacle, lowest digit = 1
     Infrared_combined = Infrared_combined | 0b00001;
+    Obstacle_flag = true;
   }
   if (!Infrared_front_right){ // front right infrared sensor detect obstacle, second lowest digit = 1
     Infrared_combined = Infrared_combined | 0b00010;
+    Obstacle_flag = true;
   }
   if (!Infrared_left){ // left infrared sensor detect obstacle, third lowest digit = 1
     Infrared_combined = Infrared_combined | 0b00100;
+    Obstacle_flag = true;
   }
   if (!Infrared_right){ // right infrared sensor detect obstacle, fourth lowest digit = 1
     Infrared_combined = Infrared_combined | 0b01000;
+    Obstacle_flag = true;
   }
   if (!Infrared_back){ // back infrared sensor detect obstacle, highest digit = 1
     Infrared_combined = Infrared_combined | 0b10000;
+    Obstacle_flag = true;
+  }
+  if (Infrared_combined == 0b00000){
+    Obstacle_flag = false;
   }
 
   switch (Infrared_combined) {
@@ -783,6 +803,126 @@ void Gimbal_control(){
 
 }
 
+void Mode_switch(){
+  // execute functions under different modes
+  switch (Mode){
+    case Mode::NORMAL:
+      if (Obstacle_flag){
+        Mode = Mode::OBSTACLE_DETECTED;
+      }
+      else if (Tennis_flag){
+        Mode = Mode::TENNIS_DETECTED;
+      }
+      Obstacle_avoidance();
+      Line_tracking();
+      Vision_tracking();
+      Gimbal_control();
+      break;
+    case Mode::OBSTACLE_DETECTED:
+      if (!Obstacle_flag){
+        Mode = Mode::NORMAL;
+      }
+      else if (Tennis_flag){
+        Mode = Mode::TENNIS_DETECTED;
+      }
+      Obstacle_avoidance();
+      Vision_tracking();
+      Gimbal_control();
+      break;
+    case Mode::TENNIS_DETECTED:
+      if (!Tennis_flag && !Catching_flag){
+        Mode = Mode::OBSTACLE_DETECTED;
+      }
+      else if (Catching_flag){
+        Mode = Mode::CATCHING;
+      }
+      Vision_tracking();
+      Gimbal_control();
+      break;
+    case Mode::CATCHING:
+      if (Catched_flag){
+        Mode = Mode::CATCHED;
+      }
+      Vision_tracking();
+      Arm_control();
+      Gimbal_control();
+      break;
+    case Mode::CATCHED:
+      if (!Catched_flag){
+        Mode = Mode::NORMAL;
+      }
+      Obstacle_avoidance();
+      Line_tracking();
+      Vision_tracking();
+      Arm_control();
+      Gimbal_control();
+      break;
+    default:
+      break;
+  }
+}
+
+
+void Mode_switch(){
+  // execute functions under different modes
+  switch (Mode){
+    case Mode::NORMAL:
+      if (Obstacle_flag){
+        Mode = Mode::OBSTACLE_DETECTED;
+      }
+      else if (Tennis_flag){
+        Mode = Mode::TENNIS_DETECTED;
+      }
+      Obstacle_avoidance();
+      Line_tracking();
+      Vision_tracking();
+      Gimbal_control();
+      break;
+    case Mode::OBSTACLE_DETECTED:
+      if (!Obstacle_flag){
+        Mode = Mode::NORMAL;
+      }
+      else if (Tennis_flag){
+        Mode = Mode::TENNIS_DETECTED;
+      }
+      Obstacle_avoidance();
+      Vision_tracking();
+      Gimbal_control();
+      break;
+    case Mode::TENNIS_DETECTED:
+      if (!Tennis_flag && !Catching_flag){
+        Mode = Mode::OBSTACLE_DETECTED;
+      }
+      else if (Catching_flag){
+        Mode = Mode::CATCHING;
+      }
+      Vision_tracking();
+      Gimbal_control();
+      break;
+    case Mode::CATCHING:
+      if (Catched_flag){
+        Mode = Mode::CATCHED;
+      }
+      Vision_tracking();
+      Arm_control();
+      Gimbal_control();
+      break;
+    case Mode::CATCHED:
+      if (!Catched_flag){
+        Mode = Mode::NORMAL;
+      }
+      Obstacle_avoidance();
+      Line_tracking();
+      Vision_tracking();
+      Arm_control();
+      Gimbal_control();
+      break;
+    default:
+      break;
+  }
+}
+
+
 
 // speed_leve: 2.0f || 5.0f || 10.0f
 float debug1,debug2,debug3, debug4;
@@ -849,6 +989,7 @@ void loop()
 {
   time = millis();
   Data_update();
+  Mode_switch();
   // Obstacle_avoidance();
 	Line_tracking();
 	// Vision_tracking();
