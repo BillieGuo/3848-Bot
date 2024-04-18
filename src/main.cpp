@@ -8,23 +8,6 @@
   SoftwareSerial arduinoSerial = SoftwareSerial(10, 11);//RX TX
 #include <Servo.h>
 
-#define SCREEN_WIDTH 128 // OLED display width, in pixels
-#define SCREEN_HEIGHT 32 // OLED display height, in pixels
-
-// Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
-#define OLED_RESET     28 //4 // Reset pin # (or -1 if sharing Arduino reset pin)
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
-int oldV=1, newV=0;
-//UNO: (2, 3)
-//SoftwareSerial mySerial(4, 6); // RX, TX
-int pan = 90;
-int tilt = 120;
-int window_size = 0;
-int BT_alive_cnt = 0;
-int voltCount = 0;
-int servo_fmin = 20;
-int servo_max = 160;
-
 unsigned long time;
 
 //FaBoPWM faboPWM;
@@ -56,22 +39,22 @@ enum class Mode {
   TENNIS_DETECTED, // -obstacle avoidance, when tennis ball detected but not catched
   CATCHING, // +Tennis ball catch, -obstacle avoidance, -line tracking, when catching tennis ball
   CATCHED// +Tennis ball catch, when tennis ball catched by arm
-};
+}Mode;
 
 
-//infrared sensors
+//infrared sensors ||left:out-gnd-vcc:right||
 #define INFRARED1 25 //front left PA3
 #define INFRARED2 28 //front right PA6
 #define INFRARED3 29 //left PA7
 #define INFRARED4 30 //right PC7
 #define INFRARED5 32 //back PC5
-bool Infrared_front_left, Infrared_front_right;
-bool Infrared_left, Infrared_right, Infrared_back;
+int Infrared_front_left, Infrared_front_right;
+int Infrared_left, Infrared_right, Infrared_back;
 
 //grayscale sensors
-#define GRAYSCALE1 A6 //left most PF1
+#define GRAYSCALE1 A3 //left most PF1
 #define GRAYSCALE2 A2 //left second PF2
-#define GRAYSCALE3 A3 //middle PF3
+#define GRAYSCALE3 A6 //middle PF3
 #define GRAYSCALE4 A7 //right second PF4
 #define GRAYSCALE5 A8 //right most PF5
 double Grayscale_middle_left, Grayscale_middle_right;
@@ -79,8 +62,8 @@ double Grayscale_middle;
 double Grayscale_left, Grayscale_right;
 
 //ultrasonic sensors
-#define SONAR_TRIG 29 //PA7
-#define SONAR_ECHO 28 //PA6
+// #define SONAR_TRIG 29 //PA7
+// #define SONAR_ECHO 28 //PA6
 double Sonar_distance_in_cm;
 int done, start_time;
 
@@ -330,21 +313,8 @@ void motor_setup(){
 
 //Where the program starts
 void setup(){
-  SERIAL.begin(115200); // USB serial setup
-  SERIAL.println("Start");
-  //Pan=PL4=>48, Tilt=PL5=>47
-  //////////////////////////////////////////////
-  //OLED Setup//////////////////////////////////
-  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3C for 128x32
-    Serial.println(F("SSD1306 allocation failed"));
-  }
-  display.clearDisplay();
-  display.setTextSize(2);      // Normal 1:1 pixel scale
-  display.setTextColor(SSD1306_WHITE); // Draw white text
-  display.cp437(true);         // Use full 256 char 'Code Page 437' font
-  display.setCursor(0, 0);     // Start at top-left corner
-  display.println("AI Robot");
-  display.display();
+  Serial.begin(115200); // USB serial setup
+  Serial.println("Start");
 
   //Motor Setup
   motor_setup();
@@ -362,23 +332,23 @@ void setup(){
 }
 
 // Sonar front distance from obstacle to car
-void Get_front_distance(){
-  long Sonar_duration;
-  if (done){
-    done = false;
-    start_time = millis();
-    digitalWrite(SONAR_TRIG, LOW); 
-  }
-  if (millis() - start_time > 2){
-    digitalWrite(SONAR_TRIG, HIGH);
-  }
-  if (millis() - start_time > 10){
-    digitalWrite(SONAR_TRIG, LOW);
-    Sonar_duration = pulseIn(SONAR_ECHO, HIGH);
-    Sonar_distance_in_cm = (Sonar_duration/2.0) / 29.1;
-    done = true;
-  }
-}
+// void Get_front_distance(){
+//   long Sonar_duration;
+//   if (done){
+//     done = false;
+//     start_time = millis();
+//     digitalWrite(SONAR_TRIG, LOW); 
+//   }
+//   if (millis() - start_time > 2){
+//     digitalWrite(SONAR_TRIG, HIGH);
+//   }
+//   if (millis() - start_time > 10){
+//     digitalWrite(SONAR_TRIG, LOW);
+//     Sonar_duration = pulseIn(SONAR_ECHO, HIGH);
+//     Sonar_distance_in_cm = (Sonar_duration/2.0) / 29.1;
+//     done = true;
+//   }
+// }
 
 // Infrared detection
 void Infrared_states(){
@@ -445,7 +415,7 @@ void Data_update() {
   // IMU
 
   // ultrasonic 
-  Get_front_distance();
+  // Get_front_distance();
 
   // gimbal
   // yaw->ENC_last_ecd = yaw->ENC_ecd;
@@ -863,67 +833,6 @@ void Mode_switch(){
 }
 
 
-void Mode_switch(){
-  // execute functions under different modes
-  switch (Mode){
-    case Mode::NORMAL:
-      if (Obstacle_flag){
-        Mode = Mode::OBSTACLE_DETECTED;
-      }
-      else if (Tennis_flag){
-        Mode = Mode::TENNIS_DETECTED;
-      }
-      Obstacle_avoidance();
-      Line_tracking();
-      Vision_tracking();
-      Gimbal_control();
-      break;
-    case Mode::OBSTACLE_DETECTED:
-      if (!Obstacle_flag){
-        Mode = Mode::NORMAL;
-      }
-      else if (Tennis_flag){
-        Mode = Mode::TENNIS_DETECTED;
-      }
-      Obstacle_avoidance();
-      Vision_tracking();
-      Gimbal_control();
-      break;
-    case Mode::TENNIS_DETECTED:
-      if (!Tennis_flag && !Catching_flag){
-        Mode = Mode::OBSTACLE_DETECTED;
-      }
-      else if (Catching_flag){
-        Mode = Mode::CATCHING;
-      }
-      Vision_tracking();
-      Gimbal_control();
-      break;
-    case Mode::CATCHING:
-      if (Catched_flag){
-        Mode = Mode::CATCHED;
-      }
-      Vision_tracking();
-      Arm_control();
-      Gimbal_control();
-      break;
-    case Mode::CATCHED:
-      if (!Catched_flag){
-        Mode = Mode::NORMAL;
-      }
-      Obstacle_avoidance();
-      Line_tracking();
-      Vision_tracking();
-      Arm_control();
-      Gimbal_control();
-      break;
-    default:
-      break;
-  }
-}
-
-
-
 // speed_leve: 2.0f || 5.0f || 10.0f
 float debug1,debug2,debug3, debug4;
 int debug5,debug6,debug7,debug8;
@@ -963,6 +872,18 @@ void debug(){
   // Serial.print("infrared2 D: ");
   // Serial.println(debug5);
 
+  //infrared 
+  Serial.print("Infrared_front_left: ");
+  Serial.println(Infrared_front_left);
+  Serial.print("Infrared_front_right: ");
+  Serial.println(Infrared_front_right);
+  Serial.print("Infrared_left: ");
+  Serial.println(Infrared_left);
+  Serial.print("Infrared_right: ");
+  Serial.println(Infrared_right);
+  Serial.print("Infrared_back: ");
+  Serial.println(Infrared_back);
+
   //gray scale
   Serial.print("Grayscale_left: ");
   Serial.println(Grayscale_left);
@@ -989,7 +910,7 @@ void loop()
 {
   time = millis();
   Data_update();
-  Mode_switch();
+  // Mode_switch();
   // Obstacle_avoidance();
 	Line_tracking();
 	// Vision_tracking();
@@ -1000,5 +921,5 @@ void loop()
   //debug
   debug();
 
-  delay(1);
+  delay(6);
 }
