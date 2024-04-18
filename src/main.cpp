@@ -6,6 +6,7 @@
 #include <PID_v1.h>
 #include <SoftwareSerial.h>
   SoftwareSerial arduinoSerial = SoftwareSerial(10, 11);//RX TX
+#include <Servo.h>
 
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 32 // OLED display height, in pixels
@@ -50,20 +51,20 @@ int MIN_VALUE = 300;
 */
 
 //infrared sensors
-#define INFRARED1 38 //front left PD7
-#define INFRARED2 41 //front right PG0
-#define INFRARED3 40 //left PG1
-#define INFRARED4 37 //right PC0
-#define INFRARED5 36 //back PC1
+#define INFRARED1 25 //front left PA3
+#define INFRARED2 28 //front right PA6
+#define INFRARED3 29 //left PA7
+#define INFRARED4 30 //right PC7
+#define INFRARED5 32 //back PC5
 bool Infrared_front_left, Infrared_front_right;
 bool Infrared_left, Infrared_right, Infrared_back;
 
 //grayscale sensors
-#define GRAYSCALE1 A1 //left most PF1
+#define GRAYSCALE1 A6 //left most PF1
 #define GRAYSCALE2 A2 //left second PF2
 #define GRAYSCALE3 A3 //middle PF3
-#define GRAYSCALE4 A4 //right second PF4
-#define GRAYSCALE5 A5 //right most PF5
+#define GRAYSCALE4 A7 //right second PF4
+#define GRAYSCALE5 A8 //right most PF5
 double Grayscale_middle_left, Grayscale_middle_right;
 double Grayscale_middle;
 double Grayscale_left, Grayscale_right;
@@ -83,6 +84,11 @@ int done, start_time;
 //WIFI
 String  message = "";
 
+//Servo motor
+#define SERVO1Pin 13
+Servo servo1;
+Servo PitchServo; // 10-150
+Servo YawServo; // 0-180
 
 class DCMotor {
   private:
@@ -281,8 +287,8 @@ void motor_setup(){
 
   motorPID1.SetMode(AUTOMATIC); motorPID2.SetMode(AUTOMATIC);
   motorPID3.SetMode(AUTOMATIC); motorPID4.SetMode(AUTOMATIC); 
-  motorPID1.SetSampleTime(10); motorPID2.SetSampleTime(10);
-  motorPID3.SetSampleTime(10); motorPID4.SetSampleTime(10);
+  motorPID1.SetSampleTime(1); motorPID2.SetSampleTime(1);
+  motorPID3.SetSampleTime(1); motorPID4.SetSampleTime(1);
   motorPID1.SetOutputLimits(-255, 255); motorPID2.SetOutputLimits(-255, 255);
   motorPID3.SetOutputLimits(-255, 255); motorPID4.SetOutputLimits(-255, 255);
 }
@@ -327,12 +333,19 @@ void setup(){
   motor_setup();
 
   //Ultrasonic Setup
-  pinMode(SONAR_ECHO, INPUT);
-  pinMode(SONAR_TRIG, OUTPUT);
+  // pinMode(SONAR_ECHO, INPUT);
+  // pinMode(SONAR_TRIG, OUTPUT);
 
   //WiFi Setup
   arduinoSerial.begin(9600);
   arduinoSerial.flush();
+
+  //Servo Setup
+  servo1.attach(SERVO1Pin);
+  servo1.write(150); //Set position
+
+  //debug 
+
 
 }
 
@@ -366,11 +379,11 @@ void Infrared_states(){
 
 // Grayscale detection
 void Grayscale_values(){
-  Grayscale_middle_left = analogRead(GRAYSCALE1);
-  Grayscale_middle_right = analogRead(GRAYSCALE5);
+  Grayscale_middle_left = analogRead(GRAYSCALE2);
+  Grayscale_middle_right = analogRead(GRAYSCALE4);
   Grayscale_middle = analogRead(GRAYSCALE3);
-  Grayscale_left = analogRead(GRAYSCALE2);
-  Grayscale_right = analogRead(GRAYSCALE4);
+  Grayscale_left = analogRead(GRAYSCALE1);
+  Grayscale_right = analogRead(GRAYSCALE5);
   // pinMode(A8, OUTPUT);
   // pinMode(33,OUTPUT);
   // pinMode(A10, OUTPUT);
@@ -470,10 +483,6 @@ void Chassis_Vector_to_Mecanum_Wheel_Speed(double vx, double vy, double wz){
 
 // speed of motor 0-0.36m/s from pwm 0-255
 void Motor_control(){
-  // Chassis_control.vx = 0.0;
-  // Chassis_control.vy = 0.0;
-  // Chassis_control.wz = 0.0;
-
   Chassis_Vector_to_Mecanum_Wheel_Speed(Chassis_control.vx, Chassis_control.vy, Chassis_control.wz);
 
   motorPID1.Compute();
@@ -639,19 +648,19 @@ void Line_tracking(){
   // gray scale detect 0.1 cm tolerance
   // combine all grayscale sensor states to one value
   int Grayscale_combined = 0b00000;
-  if (Grayscale_right > 930) { // right most grayscale sensor detect white line, lowest digit = 1
+  if (Grayscale_right > 900) { // right most grayscale sensor detect white line, lowest digit = 1
     Grayscale_combined = Grayscale_combined | 0b00001;
   }
-  if (Grayscale_middle_right > 930) { // right second grayscale sensor detect white line, second lowest digit = 1
+  if (Grayscale_middle_right > 900) { // right second grayscale sensor detect white line, second lowest digit = 1
     Grayscale_combined = Grayscale_combined | 0b00010;
   }
-  if (Grayscale_middle > 930) { // middle grayscale sensor detect white line, third lowest digit = 1
+  if (Grayscale_middle > 900) { // middle grayscale sensor detect white line, third lowest digit = 1
     Grayscale_combined = Grayscale_combined | 0b00100;
   }
-  if (Grayscale_middle_left > 930) { // left second grayscale sensor detect white line, fourth lowest digit = 1
+  if (Grayscale_middle_left > 900) { // left second grayscale sensor detect white line, fourth lowest digit = 1
     Grayscale_combined = Grayscale_combined | 0b01000;
   }
-  if (Grayscale_left > 930) { // left most grayscale sensor detect white line, highest digit = 1
+  if (Grayscale_left > 900) { // left most grayscale sensor detect white line, highest digit = 1
     Grayscale_combined = Grayscale_combined | 0b10000;
   }
   switch (Grayscale_combined){
@@ -660,12 +669,14 @@ void Line_tracking(){
     //   break;
     case 0b00001: // only right most detect white, may be court edge, move towards right
       Move(0.0, 0.05, 0.0);
+      Serial.println("right most");
       break;
     // case 0b00010: // only middle right detect white, not court edge, ignore
     //   Move(0.10, 0.0, 0.0); // go straight
     //   break;
     case 0b00011: // right most and middle right detect white, may be court edge, move towards right
       Move(0.0, 0.05, 0.0);
+      Serial.println("right most and middle right");
       break;
     // case 0b00100: // only middle detect white, not court edge, ignore
     //   Move(0.10, 0.0, 0.0); // go straight
@@ -675,9 +686,11 @@ void Line_tracking(){
     //   break;
     case 0b00110: // middle and middle right detect white, may be court edge, move towards right
       Move(0.0, 0.05, 0.0);
+      Serial.println("middle and middle right");
       break;
     case 0b00111: // middle, middle right and right most detect white, may be court edge, move towards right
       Move(0.0, 0.05, 0.0);
+      Serial.println("middle, middle right and right most");
       break;
     // case 0b01000: // only middle left detect white, not court edge, ignore
     //   Move(0.10, 0.0, 0.0); // go straight
@@ -767,33 +780,37 @@ void Arm_control(){
 
 void Gimbal_control(){
   // servo control
+
 }
 
+
+// speed_leve: 2.0f || 5.0f || 10.0f
 float debug1,debug2,debug3, debug4;
+int debug5,debug6,debug7,debug8;
 void debug(){
   //testing
   // MOTORA_FORWARD(130);
   // MOTORB_FORWARD(255);
   // MOTORC_FORWARD(255);
   // MOTORD_FORWARD(255);
-  Chassis_control.vx = 10.0;
+  Chassis_control.vx = 0.0;
   Chassis_control.vy = 0.0;
   Chassis_control.wz = 0.0;
-  Serial.print("M1 ecd:");
-  Serial.println(motor1.ecd);
-  Serial.print("M1 speed:");
-  Serial.println(motor1.speed);
-  Serial.print("M1 speed_set: ");
-  Serial.println(motor1.speed_set);
-  Serial.print("M1 pidout: ");
-  Serial.println(pidout1);
-  Serial.print("M1 pwm: ");
-  Serial.println(motor1.pwm);
-  Serial.println("M1 pwm_set: ");
-  Serial.println(motor1.speed_set / 20.0 * 255);
+  // Serial.print("M1 ecd:");
+  // Serial.println(motor1.ecd);
+  // Serial.print("M1 speed:");
+  // Serial.println(motor1.speed);
+  // Serial.print("M1 speed_set: ");
+  // Serial.println(motor1.speed_set);
+  // Serial.print("M1 pidout: ");
+  // Serial.println(pidout1);
+  // Serial.print("M1 pwm: ");
+  // Serial.println(motor1.pwm);
+  // Serial.print("M1 pwm_set: ");
+  // Serial.println(motor1.speed_set / 20.0 * 255);
   // Serial.println(motor1.speed); // serialport debug
 
-  // debug1 = analogRead(A8);
+  // debug1 = analogRead(A14);
   // Serial.print("gray scale1: ");
   // Serial.println(debug1);
   // debug2 = analogRead(A1);
@@ -802,9 +819,29 @@ void debug(){
   // debug3 = analogRead(A15);
   // Serial.print("infrared2: ");
   // Serial.println(debug3);
-  // debug3 = digitalRead(33);
+  // debug5 = digitalRead(32);
   // Serial.print("infrared2 D: ");
-  // Serial.println(debug4);
+  // Serial.println(debug5);
+
+  //gray scale
+  Serial.print("Grayscale_left: ");
+  Serial.println(Grayscale_left);
+  Serial.print("Grayscale_middle_left: ");
+  Serial.println(Grayscale_middle_left);
+  Serial.print("Grayscale_middle: ");
+  Serial.println(Grayscale_middle);
+  Serial.print("Grayscale_middle_right: ");
+  Serial.println(Grayscale_middle_right);
+  Serial.print("Grayscale_right: ");
+  Serial.println(Grayscale_right);
+
+  MOTORA_FORWARD(0);
+  MOTORB_FORWARD(0);
+  MOTORC_FORWARD(0);
+  MOTORD_FORWARD(0);
+  // gimbal
+  // servo1.write(180);
+  // Serial.println(servo1.read());
 
 }
 
@@ -813,7 +850,7 @@ void loop()
   time = millis();
   Data_update();
   // Obstacle_avoidance();
-	// Line_tracking();
+	Line_tracking();
 	// Vision_tracking();
 	// Arm_control();
   // Gimbal_control();
@@ -822,5 +859,5 @@ void loop()
   //debug
   debug();
 
-  delay(10);
+  delay(1);
 }
