@@ -32,6 +32,7 @@ int MIN_VALUE = 300;
 /*
   BELOW BY GROUP C4-C
 */
+
 // enum class for states with different function executions
 enum class Mode {
   NORMAL, // Obstacle avoidance + Line tracking + Tennis ball detection + Wifi communication
@@ -84,9 +85,12 @@ bool Catched_flag = false;
 //WIFI
 String  message = "";
 
+//Vision
+String vision_message = "";
+
 //Servo motor
-#define SERVO1Pin 13
-Servo servo1;
+// #define PitchPin 13
+// #define YawPin 14
 Servo PitchServo; // 10-150
 Servo YawServo; // 0-180
 
@@ -121,6 +125,12 @@ class Chassis_control_t {
     double vx, vy, wz;
 } Chassis_control;
 
+class Gimbal_control_t {
+  private:
+
+  public:
+    double pitch, yaw;
+} Gimbal_control;
 
 const double EPRA = 660;//�?速比�?1�?660
 const double EPRB = 660;//�?速比�?1�?660
@@ -294,23 +304,6 @@ void motor_setup(){
 }
 
 
-
-
-// void cmd_vel_cb(const geometry_msgs::Twist& vel_msg){ // x // y // z
-//     delay(10);
-//     motorPID1.outputSum = 0;
-//     motorPID2.outputSum = 0;
-//     motorPID3.outputSum = 0;
-//     motorPID4.outputSum = 0;
-//     motor1.setDirection(0);motor2.setDirection(0);motor3.setDirection(0);motor4.setDirection(0);
-//     mecanumDrive.calculateWheelSpeeds(vel_msg.linear.x, vel_msg.linear.y, vel_msg.angular.z);
-//     set_eps1 = EPRA * mecanumDrive.wheelSpeeds[0] / 2 / pi; 
-//     set_eps2 = EPRB * mecanumDrive.wheelSpeeds[1] / 2 / pi; 
-//     set_eps3 = EPRC * mecanumDrive.wheelSpeeds[2] / 2 / pi; 
-//     set_eps4 = EPRD * mecanumDrive.wheelSpeeds[3] / 2 / pi; 
-// }
-
-
 //Where the program starts
 void setup(){
   Serial.begin(115200); // USB serial setup
@@ -326,6 +319,12 @@ void setup(){
   //WiFi Setup
   arduinoSerial.begin(9600);
   arduinoSerial.flush();
+
+  // Servo Setup
+  // PitchServo.attach(PitchPin);
+  // YawServo.attach(YawPin);
+  // PitchServo.write(30);
+  // YawServo.write(90);
 
   //Mode Setup
   Mode = Mode::NORMAL; // original mode == NORMAL
@@ -375,10 +374,21 @@ void Grayscale_values(){
 void Esp8266_recv(){
   if (arduinoSerial.available() > 0) {
       message = arduinoSerial.readString();
-      delay(1);
     Serial.println(message);
     message = "";
   }
+}
+
+//protocal: Yaw-Pitch
+void Vision_recv(){
+  // if (Serial.available() > 0) {
+  //     vision_message = Serial.readString();
+  //     delay(1);
+  // Gimbal_control.yaw = vision_message.substring(0, vision_message.indexOf('-')).toInt();
+  // Gimbal_control.pitch = vision_message.substring(vision_message.indexOf('-')+1).toInt();
+  //   Serial.println(message);
+  //   vision_message = "";
+  // }
 }
 
 void Data_update() {
@@ -391,11 +401,8 @@ void Data_update() {
   motor2.last_ecd = motor2.ecd;
   motor3.last_ecd = motor3.ecd;
   motor4.last_ecd = motor4.ecd;
-  // eps1_fb = filter1.add(eps1);
-  // eps2_fb = filter2.add(eps2);
-  // eps3_fb = filter3.add(eps3);
-  // eps4_fb = filter4.add(eps4);
-  motor1.speed = eps1 * Wheel_Radius / EPRA * 100; // m/s
+  // eps1 = eps1 * 1000 / 660; // encoder count per second ???
+  motor1.speed = eps1 * Wheel_Radius / EPRA * 100;
   motor2.speed = eps2 * Wheel_Radius / EPRB * 100;
   motor3.speed = eps3 * Wheel_Radius / EPRC * 100; 
   motor4.speed = eps4 * Wheel_Radius / EPRD * 100;
@@ -417,26 +424,9 @@ void Data_update() {
   // ultrasonic 
   // Get_front_distance();
 
-  // gimbal
-  // yaw->ENC_last_ecd = yaw->ENC_ecd;
-  // // ENC angle?
-	// yaw->INS_angle = INS_angle_deg[0] - yaw->INS_angle_offset; // -180<angle_deg<180
-	
-	// if ( yaw->INS_angle > 180.0f)
-	// 	yaw->INS_angle = yaw->INS_angle - 360.0f;
-	// if ( yaw->INS_angle < -180.0f)
-	// 	yaw->INS_angle = yaw->INS_angle + 360.0f;
-	
-	// yaw->ENC_angle = ( yaw->ENC_ecd / 65535.0f * 360.0f + yaw->ENC_round_cnt * 360.0f );
-	// yaw->origin = (YAW_MOTOR_INIT_POS / 65535.0f) * 360.0f + ( yaw->ENC_round_cnt * 360.0f );
-	// yaw->ENC_relative_angle = yaw->ENC_angle - yaw->origin;
-	// if (yaw->ENC_relative_angle < -180.0f )
-	// 	yaw->ENC_relative_angle = 360.0f + yaw->ENC_relative_angle;
-	// if (yaw->ENC_relative_angle > 180.0f )
-	// 	yaw->ENC_relative_angle = yaw->ENC_relative_angle - 360.0f;
-	
   // respbreey pi comm / Esp8266 || Serial 
   // Esp8266_recv();
+  // Vision_recv();
 }
 
 // Motor implementation
@@ -766,11 +756,14 @@ void Vision_tracking(){
 
 void Arm_control(){
   // servo control
+
 }
 
-void Gimbal_control(){
+void Gimbal_motor_control(){
   // servo control
-
+  // YawServo.write(Gimbal_control.yaw);
+  // PitchServo.write(Gimbal_control.pitch);
+  
 }
 
 void Mode_switch(){
@@ -786,7 +779,7 @@ void Mode_switch(){
       Obstacle_avoidance();
       Line_tracking();
       Vision_tracking();
-      Gimbal_control();
+      Gimbal_motor_control();
       break;
     case Mode::OBSTACLE_DETECTED:
       if (!Obstacle_flag){
@@ -797,7 +790,7 @@ void Mode_switch(){
       }
       Obstacle_avoidance();
       Vision_tracking();
-      Gimbal_control();
+      Gimbal_motor_control();
       break;
     case Mode::TENNIS_DETECTED:
       if (!Tennis_flag && !Catching_flag){
@@ -807,7 +800,7 @@ void Mode_switch(){
         Mode = Mode::CATCHING;
       }
       Vision_tracking();
-      Gimbal_control();
+      Gimbal_motor_control();
       break;
     case Mode::CATCHING:
       if (Catched_flag){
@@ -815,7 +808,7 @@ void Mode_switch(){
       }
       Vision_tracking();
       Arm_control();
-      Gimbal_control();
+      Gimbal_motor_control();
       break;
     case Mode::CATCHED:
       if (!Catched_flag){
@@ -825,7 +818,7 @@ void Mode_switch(){
       Line_tracking();
       Vision_tracking();
       Arm_control();
-      Gimbal_control();
+      Gimbal_motor_control();
       break;
     default:
       break;
@@ -838,6 +831,7 @@ float debug1,debug2,debug3, debug4;
 int debug5,debug6,debug7,debug8;
 void debug(){
   //testing
+  // motor
   // MOTORA_FORWARD(130);
   // MOTORB_FORWARD(255);
   // MOTORC_FORWARD(255);
@@ -859,47 +853,35 @@ void debug(){
   // Serial.println(motor1.speed_set / 20.0 * 255);
   // Serial.println(motor1.speed); // serialport debug
 
-  // debug1 = analogRead(A14);
-  // Serial.print("gray scale1: ");
-  // Serial.println(debug1);
-  // debug2 = analogRead(A1);
-  // Serial.print("gray2: ");
-  // Serial.println(debug2);
-  // debug3 = analogRead(A15);
-  // Serial.print("infrared2: ");
-  // Serial.println(debug3);
-  // debug5 = digitalRead(32);
-  // Serial.print("infrared2 D: ");
-  // Serial.println(debug5);
-
   //infrared 
-  Serial.print("Infrared_front_left: ");
-  Serial.println(Infrared_front_left);
-  Serial.print("Infrared_front_right: ");
-  Serial.println(Infrared_front_right);
-  Serial.print("Infrared_left: ");
-  Serial.println(Infrared_left);
-  Serial.print("Infrared_right: ");
-  Serial.println(Infrared_right);
-  Serial.print("Infrared_back: ");
-  Serial.println(Infrared_back);
+  // Serial.print("Infrared_front_left: ");
+  // Serial.println(Infrared_front_left);
+  // Serial.print("Infrared_front_right: ");
+  // Serial.println(Infrared_front_right);
+  // Serial.print("Infrared_left: ");
+  // Serial.println(Infrared_left);
+  // Serial.print("Infrared_right: ");
+  // Serial.println(Infrared_right);
+  // Serial.print("Infrared_back: ");
+  // Serial.println(Infrared_back);
 
   //gray scale
-  Serial.print("Grayscale_left: ");
-  Serial.println(Grayscale_left);
-  Serial.print("Grayscale_middle_left: ");
-  Serial.println(Grayscale_middle_left);
-  Serial.print("Grayscale_middle: ");
-  Serial.println(Grayscale_middle);
-  Serial.print("Grayscale_middle_right: ");
-  Serial.println(Grayscale_middle_right);
-  Serial.print("Grayscale_right: ");
-  Serial.println(Grayscale_right);
+  // Serial.print("Grayscale_left: ");
+  // Serial.println(Grayscale_left);
+  // Serial.print("Grayscale_middle_left: ");
+  // Serial.println(Grayscale_middle_left);
+  // Serial.print("Grayscale_middle: ");
+  // Serial.println(Grayscale_middle);
+  // Serial.print("Grayscale_middle_right: ");
+  // Serial.println(Grayscale_middle_right);
+  // Serial.print("Grayscale_right: ");
+  // Serial.println(Grayscale_right);
 
   MOTORA_FORWARD(0);
   MOTORB_FORWARD(0);
   MOTORC_FORWARD(0);
   MOTORD_FORWARD(0);
+  
   // gimbal
   // servo1.write(180);
   // Serial.println(servo1.read());
@@ -914,12 +896,12 @@ void loop()
   // Obstacle_avoidance();
 	Line_tracking();
 	// Vision_tracking();
+  // Gimbal_motor_control();
 	// Arm_control();
-  // Gimbal_control();
   Motor_control();
 
   //debug
   debug();
 
-  delay(6);
+  delay(1);
 }
