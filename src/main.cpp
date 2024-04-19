@@ -527,18 +527,22 @@ void Obstacle_avoidance(){
     //   break;
     case 0b00001: //front left, move towards right
       Move(0.0, 0.05, 0.0);
+      Serial.println("front left");
       break;
     case 0b00010: //front right, move towards left
       Move(0.0, -0.05, 0.0);
+      Serial.println("front right");
       break;
     case 0b00011: //front left and front right, move towards left
       Move(0.0, -0.05, 0.0);
+      Serial.println("front left and front right");
       break;
     // case 0b00100: //left, go straigt
     //   Move(0.10, 0.0, 0.0);
     //   break;
     case 0b00101: //left and front left, move towards right
       Move(0.0, 0.05, 0.0);
+      Serial.println("left and front left");
       break;
     case 0b00110: //left and front right, move towards right // actually not possible?
       Move(0.0, 0.05, 0.0);
@@ -893,7 +897,7 @@ void loop()
   time = millis();
   Data_update();
   // Mode_switch();
-  // Obstacle_avoidance();
+  Obstacle_avoidance();
 	Line_tracking();
 	// Vision_tracking();
   // Gimbal_motor_control();
