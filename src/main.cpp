@@ -132,10 +132,10 @@ class Gimbal_control_t {
     double pitch, yaw;
 } Gimbal_control;
 
-const double EPRA = 660;//ï¿½?é€Ÿæ¯”ï¿½?1ï¿½?660
-const double EPRB = 660;//ï¿½?é€Ÿæ¯”ï¿½?1ï¿½?660
-const double EPRC = 660;//ï¿½?é€Ÿæ¯”ï¿½?1ï¿½?660
-const double EPRD = 660;//ï¿½?é€Ÿæ¯”ï¿½?1ï¿½?660
+const double EPRA = 660;//ï¿??é€Ÿæ¯”ï¿??1ï¿??660
+const double EPRB = 660;//ï¿??é€Ÿæ¯”ï¿??1ï¿??660
+const double EPRC = 660;//ï¿??é€Ÿæ¯”ï¿??1ï¿??660
+const double EPRD = 660;//ï¿??é€Ÿæ¯”ï¿??1ï¿??660
 
 const int pwmPin1 = 12; const int dir1A = 34; const int dir1B = 35; const int encoder1A = 18; const int encoder1B = 31; // A M1
 const int pwmPin2 = 8; const int dir2A = 37; const int dir2B = 36; const int encoder2A = 19; const int encoder2B = 38; // B M2
@@ -306,7 +306,7 @@ void motor_setup(){
 
 //Where the program starts
 void setup(){
-  Serial.begin(115200); // USB serial setup
+  Serial.begin(9600); // USB serial setup
   Serial.println("Start");
 
   //Motor Setup
@@ -344,7 +344,7 @@ void setup(){
 //   if (millis() - start_time > 10){
 //     digitalWrite(SONAR_TRIG, LOW);
 //     Sonar_duration = pulseIn(SONAR_ECHO, HIGH);
-//     Sonar_distance_in_cm = (Sonar_duration/2.0) / 29.1;
+//     Sonar_distance_in_cm = (Sonar_duration/0.4) / 29.1;
 //     done = true;
 //   }
 // }
@@ -354,7 +354,7 @@ void Infrared_states(){
   Infrared_front_left = digitalRead(INFRARED1);
   Infrared_front_right = digitalRead(INFRARED2);
   Infrared_left = digitalRead(INFRARED4);
-  Infrared_right = digitalRead(INFRARED3);
+  Infrared_right = digitalRead(INFRARED3); 
   Infrared_back = digitalRead(INFRARED5);
 }
 
@@ -406,10 +406,10 @@ void Data_update() {
   motor2.speed = eps2 * Wheel_Radius / EPRB * 100;
   motor3.speed = eps3 * Wheel_Radius / EPRC * 100; 
   motor4.speed = eps4 * Wheel_Radius / EPRD * 100;
-  motor1.pwm = motor1.speed / 20.0 * 255;
-  motor2.pwm = motor2.speed / 20.0 * 255;
-  motor3.pwm = motor3.speed / 20.0 * 255;
-  motor4.pwm = motor4.speed / 20.0 * 255;
+  // motor1.pwm = motor1.speed / 2.4 * 255;
+  // motor2.pwm = motor2.speed / 2.4 * 255;
+  // motor3.pwm = motor3.speed / 2.4 * 255;
+  // motor4.pwm = motor4.speed / 2.4 * 255;
 
   // infrared
   Infrared_states();
@@ -447,13 +447,13 @@ void Chassis_Vector_to_Mecanum_Wheel_Speed(double vx, double vy, double wz){
   motor2.speed_set = wheel_speed[1];
   motor3.speed_set = wheel_speed[2];
   motor4.speed_set = wheel_speed[3];
-  motor1.pwm_set = wheel_speed[0] / 20.0 * 255;
-  motor2.pwm_set = wheel_speed[1] / 20.0 * 255;
-  motor3.pwm_set = wheel_speed[2] / 20.0 * 255;
-  motor4.pwm_set = wheel_speed[3] / 20.0 * 255;
+  motor1.pwm_set = wheel_speed[0] / 2.4 * 255;
+  motor2.pwm_set = wheel_speed[1] / 2.4 * 255;
+  motor3.pwm_set = wheel_speed[2] / 2.4 * 255;
+  motor4.pwm_set = wheel_speed[3] / 2.4 * 255;
 }
 
-// speed of motor 0-0.36m/s from pwm 0-255
+// speed of motor 0-2.4 from pwm 0-255
 void Motor_control(){
   Chassis_Vector_to_Mecanum_Wheel_Speed(Chassis_control.vx, Chassis_control.vy, Chassis_control.wz);
 
@@ -461,26 +461,26 @@ void Motor_control(){
   motorPID2.Compute();
   motorPID3.Compute();
   motorPID4.Compute();
-  pidout1 = pidout1 / 20.0 * 255;
-  pidout2 = pidout2 / 20.0 * 255;
-  pidout3 = pidout3 / 20.0 * 255;
-  pidout4 = pidout4 / 20.0 * 255;
-  pwm1 = motor1.speed_set / 20.0 * 255;
-  pwm2 = motor2.speed_set / 20.0 * 255;
-  pwm3 = motor3.speed_set / 20.0 * 255;
-  pwm4 = motor4.speed_set / 20.0 * 255;
-  // pwm1 = pwm1 + pidout1;
-  // pwm2 = pwm2 + pidout2;
-  // pwm3 = pwm3 + pidout3;
-  // pwm4 = pwm4 + pidout4;
+  pidout1 = pidout1 / 2.4 * 255;
+  pidout2 = pidout2 / 2.4 * 255;
+  pidout3 = pidout3 / 2.4 * 255;
+  pidout4 = pidout4 / 2.4 * 255;
+  motor1.pwm = motor1.speed_set / 2.4 * 255;
+  motor2.pwm = motor2.speed_set / 2.4 * 255;
+  motor3.pwm = motor3.speed_set / 2.4 * 255;
+  motor4.pwm = motor4.speed_set / 2.4 * 255;
+  motor1.pwm = motor1.pwm + pidout1;
+  motor2.pwm = motor2.pwm + pidout2;
+  motor3.pwm = motor3.pwm + pidout3;
+  motor4.pwm = motor4.pwm + pidout4;
   CLIP(pwm1, -255, 255);
   CLIP(pwm2, -255, 255);
   CLIP(pwm3, -255, 255);
   CLIP(pwm4, -255, 255);
-  motor1.setMotor(pwm1);
-  motor2.setMotor(pwm2);
-  motor3.setMotor(pwm3);
-  motor4.setMotor(pwm4);
+  motor1.setMotor(motor1.pwm);
+  motor2.setMotor(motor2.pwm);
+  motor3.setMotor(motor3.pwm);
+  motor4.setMotor(motor4.pwm);
   // motor1.setMotor(pidout1);
   // motor2.setMotor(pidout2);
   // motor3.setMotor(pidout3);
@@ -524,111 +524,103 @@ void Obstacle_avoidance(){
   Serial.println(Infrared_combined);
   switch (Infrared_combined) {
     // case 0b00000: //no obstacle
-    //   Move(0.0, 2.0, 0.0);
+    //   Move(0.0, 0.4, 0.0);
     //   break;
     case 0b00001: //front left, move towards right
-      Move(2.0, 0.0, 0.0);
-      Serial.println("front left");
+      Move(0.4, 0.0, 0.0);
       break;
     case 0b00010: //front right, move towards left
-      Move(-2.0, 0.0, 0.0);
-      Serial.println("front right");
+      Move(-0.4, 0.0, 0.0);
       break;
     case 0b00011: //front left and front right, move towards left
-      Move(-2.0, 0.0, 0.0);
-      Serial.println("front left and front right");
+      Move(-0.4, 0.0, 0.0);
       break;
-    case 0b00100: //left, go straigt
-      Move(0.0, 2.0, 0.0);
-      Serial.println("left");
-      break;
+    // case 0b00100: //left, go straigt
+    //   Move(0.0, 0.4, 0.0);
+    //   break;
     case 0b00101: //left and front left, move towards right
-      Move(2.0, 0.0, 0.0);
-      Serial.println("left and front left");
+      Move(0.4, 0.0, 0.0);
       break;
     case 0b00110: //left and front right, move towards right // actually not possible?
-      Move(2.0, 0.0, 0.0);
-      Serial.println("left and front right");
+      Move(0.4, 0.0, 0.0);
       break;
     case 0b00111: //left, front left and front right, move towards right
-      Move(2.0, 0.0, 0.0);
-      Serial.println("left, front left and front right");
+      Move(0.4, 0.0, 0.0);
       break;
     // case 0b01000: //right, go straight
-    //   Move(0.0, 2.0, 0.0);
+    //   Move(0.0, 0.4, 0.0);
     //   break;
     case 0b01001: //right and front left, move towards left // actually not possible?
-      Move(2.0, 0.0, 0.0);
-      Serial.println("right and front left");
+      Move(-0.4, 0.0, 0.0);
       break;
     case 0b01010: //right and front right, move towards left 
-      Move(2.0, 0.0, 0.0);
+      Move(-0.4, 0.0, 0.0);
       break;
     case 0b01011: //right, front left and front right, move towards left
-      Move(2.0, 0.0, 0.0);
+      Move(-0.4, 0.0, 0.0);
       break;
     // case 0b01100: //right and left, go straigt
-    //   Move(0.0, 2.0, 0.0);
+    //   Move(0.0, 0.4, 0.0);
     //   break;
     case 0b01101: //right, left and front left, move backward
-      Move(0.0, -2.0, 0.0);
+      Move(0.0, -0.4, 0.0);
       break;
     case 0b01110: //right, left and front right, move backward
-      Move(0.0, -2.0, 0.0);
+      Move(0.0, -0.4, 0.0);
       break;
     case 0b01111: //right, left, front left and front right, move backward
-      Move(0.0, -2.0, 0.0);
+      Move(0.0, -0.4, 0.0);
       break;
     // case 0b10000: //back, go straight
-    //   Move(0.0, 2.0, 0.0);
+    //   Move(0.0, 0.4, 0.0);
     //   break;
     case 0b10001: //back and front left, move forward right
-      Move(2.0, 2.0, 0.0);
+      Move(0.4, 0.4, 0.0);
       break;
     case 0b10010: //back and front right, move forward left
-      Move(-2.0, 2.0, 0.0);
+      Move(-0.4, 0.4, 0.0);
       break;
     case 0b10011: //back, front left and front right, move towards left
-      Move(-2.0, 0.0, 0.0);
+      Move(-0.4, 0.0, 0.0);
       break;
     // case 0b10100: //back and left, go straight
-    //   Move(0.0, 2.0, 0.0);
+    //   Move(0.0, 0.4, 0.0);
     //   break;
     case 0b10101: //back, left and front left, move towards right
-      Move(2.0, 0.0, 0.0);
+      Move(0.4, 0.0, 0.0);
       break;
     case 0b10110: //back, left and front right, move towards right  // actually not possible?
-      Move(2.0, 0.0, 0.0);
+      Move(0.4, 0.0, 0.0);
       break;
     case 0b10111: //back, left, front left and front right, move towards right
-      Move(2.0, 0.0, 0.0);
+      Move(0.4, 0.0, 0.0);
       break;
     // case 0b11000: //back and right, go straight
-    //   Move(0.0, 2.0, 0.0);
+    //   Move(0.0, 0.4, 0.0);
     //   break;
     case 0b11001: //back, right and front left, move towards left // actually not possible?
-      Move(2.0, 0.0, 0.0);
+      Move(0.4, 0.0, 0.0);
       break;
     case 0b11010: //back, right and front right, move towards left
-      Move(-2.0, 0.0, 0.0);
+      Move(-0.4, 0.0, 0.0);
       break;
     case 0b11011: //back, right, front left and front right, move towards left
-      Move(-2.0, 0.0, 0.0);
+      Move(-0.4, 0.0, 0.0);
       break;
     // case 0b11100: //back, right and left, go straight
-    //   Move(0.0, 2.0, 0.0);
+    //   Move(0.0, 0.4, 0.0);
     //   break;
     case 0b11101: //back, right, left and front left, move forward right // actually not possible?
-      Move(2.0, 2.0, 0.0);
+      Move(0.4, 0.4, 0.0);
       break;
     case 0b11110: //back, right, left and front right, move forward left // actually not possible?
-      Move(-2.0, 2.0, 0.0);
+      Move(-0.4, 0.4, 0.0);
       break;
     case 0b11111: //back, right, left, front left and front right, can only stop // actually not possible?
       Move(0.0, 0.0, 0.0);
       break;
     default:
-      Move(0.0, 2.0, 0.0);
+      Move(0.0, 0.4, 0.0);
       break;
   }
 }
@@ -654,116 +646,109 @@ void Line_tracking(){
   }
   switch (Grayscale_combined){
     // case 0b00000: // no white line detected
-    //   Move(0.0, 2.0, 0.0); // go straight
+    //   Move(0.0, 0.4, 0.0); // go straight
     //   break;
     case 0b00001: // only right most detect white, may be court edge, move towards right
-      Move(2.0, 0.0, 0.0);
+      Move(0.4, 0.0, 0.0);
       Serial.println("right most");
       break;
     // case 0b00010: // only middle right detect white, not court edge, ignore
-    //   Move(0.0, 2.0, 0.0); // go straight
+    //   Move(0.0, 0.4, 0.0); // go straight
     //   break;
     case 0b00011: // right most and middle right detect white, may be court edge, move towards right
-      Move(2.0, 0.0, 0.0);
+      Move(0.4, 0.0, 0.0);
       Serial.println("right most and middle right");
       break;
     // case 0b00100: // only middle detect white, not court edge, ignore
-    //   Move(0.0, 2.0, 0.0); // go straight
+    //   Move(0.0, 0.4, 0.0); // go straight
     //   break;
     // case 0b00101: // middle and right most detect white, not court edge, ignore
-    //   Move(0.0, 2.0, 0.0); // go straight
+    //   Move(0.0, 0.4, 0.0); // go straight
     //   break;
     case 0b00110: // middle and middle right detect white, may be court edge, move towards right
-      Move(2.0, 0.0, 0.0);
+      Move(0.4, 0.0, 0.0);
       Serial.println("middle and middle right");
       break;
     case 0b00111: // middle, middle right and right most detect white, may be court edge, move towards right
-      Move(2.0, 0.0, 0.0);
+      Move(0.4, 0.0, 0.0);
       Serial.println("middle, middle right and right most");
       break;
     // case 0b01000: // only middle left detect white, not court edge, ignore
-    //   Move(0.0, 2.0, 0.0); // go straight
+    //   Move(0.0, 0.4, 0.0); // go straight
     //   break;
     // case 0b01001: // middle left and right most detect white, not court edge, ignore
-    //   Move(0.0, 2.0, 0.0); // go straight
+    //   Move(0.0, 0.4, 0.0); // go straight
     //   break;
     // case 0b01010: // middle left and middle right detect white, not court edge, ignore
-    //   Move(0.0, 2.0, 0.0); // go straight
+    //   Move(0.0, 0.4, 0.0); // go straight
     //   break;
     // case 0b01011: // middle left, middle right and right most detect white, not court edge, ignore
-    //   Move(0.0, 2.0, 0.0); // go straight
+    //   Move(0.0, 0.4, 0.0); // go straight
     //   break;
-    case 0b01100: // middle and middle left detect white, may be court edge, move towards left
-      Move(-2.0, 0.0, 0.0);
-      Serial.println("middle left");
+    case 0b01100: // middle left detect white, may be court edge, move towards left
+      Move(-0.4, 0.0, 0.0);
       break;
     // case 0b01101: // middle left, middle and right most detect white, not court edge, ignore
-    //   Move(0.0, 2.0, 0.0); // go straight
+    //   Move(0.0, 0.4, 0.0); // go straight
     //   break;
-    case 0b01110: // middle three detect white, court edge (middle part)
-      Move(0.0, 2.0, 0.0); // go straight
-      Serial.println("middle three");
-      break;
+    // case 0b01110: // middle three detect white, court edge (middle part)
+    //   Move(0.0, 0.4, 0.0); // go straight
+    //   break;
     case 0b01111: // middle three + right most detect white, court edge (right corner)
       Move(0.0, 0.0, 2.0); // rotate left 90 degree
       Serial.println("middle three + right most");
       break;
     case 0b10000: // only left most detect white, may be court edge, move towards left
-      Move(-2.0, 0.0, 0.0);
-      Serial.println("left most");
+      Move(-0.4, 0.0, 0.0);
       break;
     // case 0b10001: // left most and right most detect white, not court edge, ignore
-    //   Move(0.0, 2.0, 0.0); // go straight
+    //   Move(0.0, 0.4, 0.0); // go straight
     //   break;
     // case 0b10010: // left most and middle right detect white, not court edge, ignore
-    //   Move(0.0, 2.0, 0.0); // go straight
+    //   Move(0.0, 0.4, 0.0); // go straight
     //   break;
     // case 0b10011: // left most, middle right and right most detect white, not court edge, ignore
-    //   Move(0.0, 2.0, 0.0); // go straight
+    //   Move(0.0, 0.4, 0.0); // go straight
     //   break;
     // case 0b10100: // left most and middle detect white, not court edge, ignore
-    //   Move(0.0, 2.0, 0.0); // go straight
+    //   Move(0.0, 0.4, 0.0); // go straight
     //   break;
     // case 0b10101: // left most, middle and right most detect white, not court edge, ignore
-    //   Move(0.0, 2.0, 0.0); // go straight
+    //   Move(0.0, 0.4, 0.0); // go straight
     //   break;
     // case 0b10110: // left most, middle right and middle detect white, not court edge, ignore
-    //   Move(0.0, 2.0, 0.0); // go straight
+    //   Move(0.0, 0.4, 0.0); // go straight
     //   break;
     case 0b10111: // left most, middle, middle right and right detect white, may be court edge, move towards right
-      Move(2.0, 0.0, 0.0);
-      Serial.println("left most, middle, middle right and right");
+      Move(0.4, 0.0, 0.0);
       break;
     case 0b11000: // left most and middle left detect white, may be court edge, move towards left
-      Move(-2.0, 0.0, 0.0);
-      Serial.println("left most and middle left");
+      Move(-0.4, 0.0, 0.0);
       break;
     // case 0b11001: // left most, middle left and right most detect white, not court edge, ignore
-    //   Move(0.0, 2.0, 0.0); // go straight
+    //   Move(0.0, 0.4, 0.0); // go straight
     //   break;
     // case 0b11010: // left most, middle left and middle right detect white, not court edge, ignore
-    //   Move(0.0, 2.0, 0.0); // go straight
+    //   Move(0.0, 0.4, 0.0); // go straight
     //   break;
     // case 0b11011: // left most, middle left, middle right and right most detect white, not court edge, ignore
-    //   Move(0.0, 2.0, 0.0); // go straight
+    //   Move(0.0, 0.4, 0.0); // go straight
     //   break;
     case 0b11100: // left most, middle left and middle detect white, may be court edge, move towards left
-      Move(-2.0, 0.0, 0.0);
-      Serial.println("left most, middle left and middle");
+      Move(-0.4, 0.0, 0.0);
       break;
     case 0b11101: // left most, middle left, middle and right most detect white, may be court edge, move towards left
-      Move(-2.0, 0.0, 0.0);
-      Serial.println("left most, middle left, middle and right most");
+      Move(-0.4, 0.0, 0.0);
       break;
     case 0b11110: // left most + middle three, court edge (left corner)
       Move(0.0, 0.0, 2.0); // rotate right 90 degree
       Serial.println("left most + middle three");
       break;
     // case 0b11111: // all detect white, court edge (crossroad)
-    //   Move(0.0, 2.0, 0.0); // go straight
+    //   Move(0.0, 0.4, 0.0); // go straight
     //   break;
     default:
-      Move(0.0, 2.0, 0.0); // go straight
+      Move(0.0, 0.4, 0.0); // go straight
       break;
   }
 }
@@ -850,11 +835,11 @@ int debug5,debug6,debug7,debug8;
 void debug(){
   //testing
   // motor
-  // MOTORA_FORWARD(130);
+  // MOTORA_FORWARD(255);
   // MOTORB_FORWARD(255);
   // MOTORC_FORWARD(255);
   // MOTORD_FORWARD(255);
-  // Chassis_control.vx = 0.0;
+  // Chassis_control.vx = 0.5;
   // Chassis_control.vy = 0.0;
   // Chassis_control.wz = 0.0;
   // Serial.print("M1 ecd:");
@@ -868,7 +853,7 @@ void debug(){
   // Serial.print("M1 pwm: ");
   // Serial.println(motor1.pwm);
   // Serial.print("M1 pwm_set: ");
-  // Serial.println(motor1.speed_set / 20.0 * 255);
+  // Serial.println(motor1.speed_set / 2.4 * 255);
   // Serial.println(motor1.speed); // serialport debug
 
   //infrared 
@@ -912,7 +897,10 @@ void loop()
   Data_update();
   // Mode_switch();
   Obstacle_avoidance();
-	Line_tracking();
+  if (Obstacle_flag == false){
+    Line_tracking();
+  }
+	// Line_tracking();
 	// Vision_tracking();
   // Gimbal_motor_control();
 	// Arm_control();
