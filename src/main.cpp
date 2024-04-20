@@ -518,6 +518,13 @@ void Obstacle_avoidance(){
     Obstacle_flag = true;
     Left_flag = true;
   }
+  // else {
+    // left_cnt += 1;
+    // if (left_cnt == 5){
+    //   Left_flag = false;
+    // }
+    // Left_flag = false;
+  // }
   if (!Infrared_right){ // right infrared sensor detect obstacle, fourth lowest digit = 1
     Infrared_combined = Infrared_combined | 0b01000;
     Obstacle_flag = true;
@@ -530,26 +537,37 @@ void Obstacle_avoidance(){
   if (Infrared_combined == 0b00000){ // if all sensors detect no obstacle
     Obstacle_flag = false;
   }
-  if (Infrared_combined & 0b00011 == 0b00000){ // front two sensors detect no obstacle
+  if ((Infrared_combined & 0b00011) == 0b00000){ // front two sensors detect no obstacle
     front_cnt += 1;
-    if (front_cnt == 5){
+    if (front_cnt >= 5){
       Front_flag = false;
+      front_cnt = 0;
     }
   }
-  if (Infrared_combined & 0b00100 == 0b00000){ // left sensor detect no obstacle
+  if ((Infrared_combined & 0b00100) == 0b00000){ // left sensor detect no obstacle
     left_cnt += 1;
-    if (left_cnt == 5){
+    if (left_cnt >= 5){
       Left_flag = false;
+      left_cnt = 0;
     }
   }
-  if (Infrared_combined & 0b01000 == 0b00000){ // right sensor detect no obstacle
+  if ((Infrared_combined & 0b01000) == 0b00000){ // right sensor detect no obstacle
     right_cnt += 1;
-    if (right_cnt == 5){
+    if (right_cnt >= 5){
       Right_flag = false;
+      right_cnt = 0;
     }
   }
 
+  Serial.println("Infrared_combined: ");
   Serial.println(Infrared_combined);
+  Serial.println("Front_flag: ");
+  Serial.println(Front_flag);
+  Serial.println("Left_flag: ");
+  Serial.println(Left_flag);
+  Serial.println("Right_flag: ");
+  Serial.println(Right_flag);
+
   switch (Infrared_combined) {
     case 0b00000: //no obstacle
       if (Front_flag && Left_flag && Right_flag){ 
@@ -727,7 +745,6 @@ void Line_tracking(){
       break;
     case 0b11110: // left most + middle three, court edge (left corner)
       Move(0.0, 0.0, -2.0); // rotate right 90 degree
-      Serial.println("left most + middle three");
       break;
     default:
       Move(0.0, 0.4, 0.0); // go straight
@@ -837,6 +854,15 @@ void debug(){
   // Serial.print("M1 pwm_set: ");
   // Serial.println(motor1.speed_set / 2.4 * 255);
   // Serial.println(motor1.speed); // serialport debug
+
+  Serial.println("M1 pwm:");
+  Serial.println(motor1.pwm);
+  Serial.println("M2 pwm:");
+  Serial.println(motor2.pwm);
+  Serial.println("M3 pwm:");
+  Serial.println(motor3.pwm);
+  Serial.println("M4 pwm:");
+  Serial.println(motor4.pwm);
 
   //infrared 
   // Serial.print("Infrared_front_left: ");
