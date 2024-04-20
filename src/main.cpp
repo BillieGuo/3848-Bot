@@ -109,6 +109,7 @@ class DCMotor {
       double speed_set;
       double pwm;
       double pwm_set;
+      String wifi_cmd;
 
       DCMotor(int pwm, int dirA, int dirB, int encoderA, int encoderB);
       void setMotor(int analogSpeed);
@@ -130,6 +131,7 @@ class Gimbal_control_t {
 
   public:
     double pitch, yaw;
+
 } Gimbal_control;
 
 const double EPRA = 660;//�?速比�?1�?660
@@ -375,6 +377,7 @@ void Esp8266_recv(){
   if (arduinoSerial.available() > 0) {
       message = arduinoSerial.readString();
     Serial.println(message);
+    Chassis_control.wifi_cmd = message;
     message = "";
   }
 }
@@ -867,16 +870,16 @@ void debug(){
   // Serial.println(Infrared_back);
 
   //gray scale
-  // Serial.print("Grayscale_left: ");
-  // Serial.println(Grayscale_left);
-  // Serial.print("Grayscale_middle_left: ");
-  // Serial.println(Grayscale_middle_left);
-  // Serial.print("Grayscale_middle: ");
-  // Serial.println(Grayscale_middle);
-  // Serial.print("Grayscale_middle_right: ");
-  // Serial.println(Grayscale_middle_right);
-  // Serial.print("Grayscale_right: ");
-  // Serial.println(Grayscale_right);
+  Serial.print("Grayscale_left: ");
+  Serial.println(Grayscale_left);
+  Serial.print("Grayscale_middle_left: ");
+  Serial.println(Grayscale_middle_left);
+  Serial.print("Grayscale_middle: ");
+  Serial.println(Grayscale_middle);
+  Serial.print("Grayscale_middle_right: ");
+  Serial.println(Grayscale_middle_right);
+  Serial.print("Grayscale_right: ");
+  Serial.println(Grayscale_right);
 
   // MOTORA_FORWARD(0);
   // MOTORB_FORWARD(0);
@@ -894,9 +897,9 @@ void loop()
   time = millis();
   Data_update();
   // Mode_switch();
-  Obstacle_avoidance();
+  // Obstacle_avoidance();
   if (Obstacle_flag == false){
-    Line_tracking();
+    // Line_tracking();
   }
 	// Line_tracking();
 	// Vision_tracking();
