@@ -574,14 +574,14 @@ void Obstacle_avoidance(){
     }
   }
 
-  // Serial.println("Infrared_combined: ");
-  // Serial.println(Infrared_combined);
-  // Serial.println("Front_flag: ");
-  // Serial.println(Front_flag);
-  // Serial.println("Left_flag: ");
-  // Serial.println(Left_flag);
-  // Serial.println("Right_flag: ");
-  // Serial.println(Right_flag);
+  Serial.println("Infrared_combined: ");
+  Serial.println(Infrared_combined);
+  Serial.println("Front_flag: ");
+  Serial.println(Front_flag);
+  Serial.println("Left_flag: ");
+  Serial.println(Left_flag);
+  Serial.println("Right_flag: ");
+  Serial.println(Right_flag);
 
   switch (Infrared_combined) {
     case 0b00000: //no obstacle
@@ -824,16 +824,6 @@ void Mode_switch(){
     case Mode::NORMAL:
       if (Obstacle_flag){
         Mode = Mode::OBSTACLE_DETECTED;
-      }
-      else if (Tennis_flag){
-        Mode = Mode::TENNIS_DETECTED;
-      }
-      Obstacle_avoidance();
-      Line_tracking();
-      // Vision_tracking();
-      // Gimbal_motor_control();
-      Serial.println("Mode:: NORMAL");
-      if (Mode == Mode::OBSTACLE_DETECTED){
         last_time = millis();
         last_avoid_move_x = Chassis_control.vx;
         last_avoid_move_y = Chassis_control.vy;
@@ -845,21 +835,24 @@ void Mode_switch(){
         Serial.print(",");
         Serial.println(last_avoid_move_z);
         Serial.println("Mode switch to OBSTACLE_DETECTED");
-      }
-      break;
-    case Mode::OBSTACLE_DETECTED:
-      if (!Obstacle_flag){
-        Mode = Mode::NORMAL;
+        break;
       }
       else if (Tennis_flag){
         Mode = Mode::TENNIS_DETECTED;
       }
       Obstacle_avoidance();
+      Line_tracking();
       // Vision_tracking();
       // Gimbal_motor_control();
-      Serial.println("Mode:: OBSTACLE_DETECTED");
-      if (Mode == Mode::NORMAL){
+      Serial.println("Mode:: NORMAL");
+      break;
+    case Mode::OBSTACLE_DETECTED:
+      if (!Obstacle_flag){
+        Mode = Mode::NORMAL;
         Move(-last_avoid_move_x, -last_avoid_move_y, -last_avoid_move_z);
+        delay(shift_stop_time - last_time);
+        Serial.print("Shift back time:");
+        Serial.println(shift_stop_time - last_time);
         Serial.print("Reverse Avoid:");
         Serial.print(-last_avoid_move_x);
         Serial.print(",");
@@ -867,8 +860,16 @@ void Mode_switch(){
         Serial.print(",");
         Serial.println(-last_avoid_move_z);
         Serial.println("Mode switch to NORMAL");
-        delay(shift_stop_time - last_time);
+        break;
       }
+      else if (Tennis_flag){
+        Mode = Mode::TENNIS_DETECTED;
+        break;
+      }
+      Obstacle_avoidance();
+      // Vision_tracking();
+      // Gimbal_motor_control();
+      Serial.println("Mode:: OBSTACLE_DETECTED");
       break;
     case Mode::TENNIS_DETECTED:
       if (!Tennis_flag && !Catching_flag){
