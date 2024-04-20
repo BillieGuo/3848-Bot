@@ -680,108 +680,55 @@ void Line_tracking(){
     Grayscale_combined = Grayscale_combined | 0b10000;
   }
   switch (Grayscale_combined){
-    // case 0b00000: // no white line detected
-    //   Move(0.0, 0.4, 0.0); // go straight
-    //   break;
+    case 0b00000: // no white line detected
+    case 0b00010: // only middle right detect white, not court edge, ignore
+    case 0b00100: // only middle detect white, not court edge, ignore
+    case 0b00101: // middle and right most detect white, not court edge, ignore
+    case 0b01000: // only middle left detect white, not court edge, ignore
+    case 0b01001: // middle left and right most detect white, not court edge, ignore
+    case 0b01010: // middle left and middle right detect white, not court edge, ignore
+    case 0b01011: // middle left, middle right and right most detect white, not court edge, ignore
+    case 0b01101: // middle left, middle and right most detect white, not court edge, ignore
+    case 0b01110: // middle three detect white, court edge (middle part)
+    case 0b10001: // left most and right most detect white, not court edge, ignore
+    case 0b10010: // left most and middle right detect white, not court edge, ignore
+    case 0b10011: // left most, middle right and right most detect white, not court edge, ignore
+    case 0b10100: // left most and middle detect white, not court edge, ignore
+    case 0b10101: // left most, middle and right most detect white, not court edge, ignore
+    case 0b10110: // left most, middle right and middle detect white, not court edge, ignore
+    case 0b11001: // left most, middle left and right most detect white, not court edge, ignore
+    case 0b11010: // left most, middle left and middle right detect white, not court edge, ignore
+    case 0b11011: // left most, middle left, middle right and right most detect white, not court edge, ignore
+    case 0b11111: // all detect white, court edge (crossroad)
+      Move(0.0, 0.4, 0.0); // go straight
+      break;
     case 0b00001: // only right most detect white, may be court edge, move towards right
-      Move(0.4, 0.0, 0.0);
-      Serial.println("right most");
-      break;
-    // case 0b00010: // only middle right detect white, not court edge, ignore
-    //   Move(0.0, 0.4, 0.0); // go straight
-    //   break;
     case 0b00011: // right most and middle right detect white, may be court edge, move towards right
-      Move(0.4, 0.0, 0.0);
-      Serial.println("right most and middle right");
-      break;
-    // case 0b00100: // only middle detect white, not court edge, ignore
-    //   Move(0.0, 0.4, 0.0); // go straight
-    //   break;
-    // case 0b00101: // middle and right most detect white, not court edge, ignore
-    //   Move(0.0, 0.4, 0.0); // go straight
-    //   break;
     case 0b00110: // middle and middle right detect white, may be court edge, move towards right
-      Move(0.4, 0.0, 0.0);
-      Serial.println("middle and middle right");
-      break;
     case 0b00111: // middle, middle right and right most detect white, may be court edge, move towards right
       Move(0.4, 0.0, 0.0);
-      Serial.println("middle, middle right and right most");
       break;
-    // case 0b01000: // only middle left detect white, not court edge, ignore
-    //   Move(0.0, 0.4, 0.0); // go straight
-    //   break;
-    // case 0b01001: // middle left and right most detect white, not court edge, ignore
-    //   Move(0.0, 0.4, 0.0); // go straight
-    //   break;
-    // case 0b01010: // middle left and middle right detect white, not court edge, ignore
-    //   Move(0.0, 0.4, 0.0); // go straight
-    //   break;
-    // case 0b01011: // middle left, middle right and right most detect white, not court edge, ignore
-    //   Move(0.0, 0.4, 0.0); // go straight
-    //   break;
     case 0b01100: // middle left detect white, may be court edge, move towards left
       Move(-0.4, 0.0, 0.0);
       break;
-    // case 0b01101: // middle left, middle and right most detect white, not court edge, ignore
-    //   Move(0.0, 0.4, 0.0); // go straight
-    //   break;
-    // case 0b01110: // middle three detect white, court edge (middle part)
-    //   Move(0.0, 0.4, 0.0); // go straight
-    //   break;
     case 0b01111: // middle three + right most detect white, court edge (right corner)
       Move(0.0, 0.0, 2.0); // rotate left 90 degree
-      Serial.println("middle three + right most");
       break;
     case 0b10000: // only left most detect white, may be court edge, move towards left
       Move(-0.4, 0.0, 0.0);
       break;
-    // case 0b10001: // left most and right most detect white, not court edge, ignore
-    //   Move(0.0, 0.4, 0.0); // go straight
-    //   break;
-    // case 0b10010: // left most and middle right detect white, not court edge, ignore
-    //   Move(0.0, 0.4, 0.0); // go straight
-    //   break;
-    // case 0b10011: // left most, middle right and right most detect white, not court edge, ignore
-    //   Move(0.0, 0.4, 0.0); // go straight
-    //   break;
-    // case 0b10100: // left most and middle detect white, not court edge, ignore
-    //   Move(0.0, 0.4, 0.0); // go straight
-    //   break;
-    // case 0b10101: // left most, middle and right most detect white, not court edge, ignore
-    //   Move(0.0, 0.4, 0.0); // go straight
-    //   break;
-    // case 0b10110: // left most, middle right and middle detect white, not court edge, ignore
-    //   Move(0.0, 0.4, 0.0); // go straight
-    //   break;
     case 0b10111: // left most, middle, middle right and right detect white, may be court edge, move towards right
       Move(0.4, 0.0, 0.0);
       break;
     case 0b11000: // left most and middle left detect white, may be court edge, move towards left
-      Move(-0.4, 0.0, 0.0);
-      break;
-    // case 0b11001: // left most, middle left and right most detect white, not court edge, ignore
-    //   Move(0.0, 0.4, 0.0); // go straight
-    //   break;
-    // case 0b11010: // left most, middle left and middle right detect white, not court edge, ignore
-    //   Move(0.0, 0.4, 0.0); // go straight
-    //   break;
-    // case 0b11011: // left most, middle left, middle right and right most detect white, not court edge, ignore
-    //   Move(0.0, 0.4, 0.0); // go straight
-    //   break;
     case 0b11100: // left most, middle left and middle detect white, may be court edge, move towards left
-      Move(-0.4, 0.0, 0.0);
-      break;
     case 0b11101: // left most, middle left, middle and right most detect white, may be court edge, move towards left
       Move(-0.4, 0.0, 0.0);
       break;
     case 0b11110: // left most + middle three, court edge (left corner)
-      Move(0.0, 0.0, 2.0); // rotate right 90 degree
+      Move(0.0, 0.0, -2.0); // rotate right 90 degree
       Serial.println("left most + middle three");
       break;
-    // case 0b11111: // all detect white, court edge (crossroad)
-    //   Move(0.0, 0.4, 0.0); // go straight
-    //   break;
     default:
       Move(0.0, 0.4, 0.0); // go straight
       break;
