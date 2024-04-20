@@ -80,6 +80,7 @@ bool Catching_flag = false;
 bool Catched_flag = false;
 
 // back to line
+int last_time = 0, shift_stop_time = 0;
 float last_avoid_move_x = 0.0;
 float last_avoid_move_y = 0.0;
 float last_avoid_move_z = 0.0;
@@ -144,10 +145,10 @@ class Gimbal_control_t {
 
 } Gimbal_control;
 
-const double EPRA = 660;//ï¿½??é€Ÿæ¯”ï¿½??1ï¿½??660
-const double EPRB = 660;//ï¿½??é€Ÿæ¯”ï¿½??1ï¿½??660
-const double EPRC = 660;//ï¿½??é€Ÿæ¯”ï¿½??1ï¿½??660
-const double EPRD = 660;//ï¿½??é€Ÿæ¯”ï¿½??1ï¿½??660
+const double EPRA = 660;//ï¿???é€Ÿæ¯”ï¿???1ï¿???660
+const double EPRB = 660;//ï¿???é€Ÿæ¯”ï¿???1ï¿???660
+const double EPRC = 660;//ï¿???é€Ÿæ¯”ï¿???1ï¿???660
+const double EPRD = 660;//ï¿???é€Ÿæ¯”ï¿???1ï¿???660
 
 const int pwmPin1 = 12; const int dir1A = 34; const int dir1B = 35; const int encoder1A = 18; const int encoder1B = 31; // A M1
 const int pwmPin2 = 8; const int dir2A = 37; const int dir2B = 36; const int encoder2A = 19; const int encoder2B = 38; // B M2
@@ -705,6 +706,9 @@ void Obstacle_avoidance(){
       Move(0.0, 0.6, 0.0);
       break;
   }
+  if (Chassis_control.vx != last_avoid_move_x){ // no left and right move
+    shift_stop_time = millis();
+  }
 }
 
 void Line_tracking(){
@@ -819,15 +823,6 @@ void Mode_switch(){
   switch (Mode){
     case Mode::NORMAL:
       if (Obstacle_flag){
-        // last_avoid_move_x = Chassis_control.vx;
-        // last_avoid_move_y = Chassis_control.vy;
-        // last_avoid_move_z = Chassis_control.wz;
-        // Serial.print("Avoid_last:");
-        // Serial.print(last_avoid_move_x);
-        // Serial.print(",");
-        // Serial.print(last_avoid_move_y);
-        // Serial.print(",");
-        // Serial.print(last_avoid_move_z);
         Mode = Mode::OBSTACLE_DETECTED;
       }
       else if (Tennis_flag){
@@ -839,6 +834,7 @@ void Mode_switch(){
       // Gimbal_motor_control();
       Serial.println("Mode:: NORMAL");
       if (Mode == Mode::OBSTACLE_DETECTED){
+        last_time = millis();
         last_avoid_move_x = Chassis_control.vx;
         last_avoid_move_y = Chassis_control.vy;
         last_avoid_move_z = Chassis_control.wz;
@@ -853,13 +849,6 @@ void Mode_switch(){
       break;
     case Mode::OBSTACLE_DETECTED:
       if (!Obstacle_flag){
-        // Move(-last_avoid_move_x, -last_avoid_move_y, -last_avoid_move_z);
-        // Serial.print("Reverse Avoid:");
-        // Serial.print(-last_avoid_move_x);
-        // Serial.print(",");
-        // Serial.print(-last_avoid_move_y);
-        // Serial.print(",");
-        // Serial.print(-last_avoid_move_z);
         Mode = Mode::NORMAL;
       }
       else if (Tennis_flag){
@@ -878,6 +867,7 @@ void Mode_switch(){
         Serial.print(",");
         Serial.println(-last_avoid_move_z);
         Serial.println("Mode switch to NORMAL");
+        delay(shift_stop_time - last_time);
       }
       break;
     case Mode::TENNIS_DETECTED:
