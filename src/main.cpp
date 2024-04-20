@@ -113,6 +113,7 @@ class DCMotor {
       double speed_set;
       double pwm;
       double pwm_set;
+      String wifi_cmd;
 
       DCMotor(int pwm, int dirA, int dirB, int encoderA, int encoderB);
       void setMotor(int analogSpeed);
@@ -134,6 +135,7 @@ class Gimbal_control_t {
 
   public:
     double pitch, yaw;
+
 } Gimbal_control;
 
 const double EPRA = 660;//�??速比�??1�??660
@@ -379,6 +381,7 @@ void Esp8266_recv(){
   if (arduinoSerial.available() > 0) {
       message = arduinoSerial.readString();
     Serial.println(message);
+    Chassis_control.wifi_cmd = message;
     message = "";
   }
 }
@@ -938,7 +941,7 @@ void loop()
   Serial.print("last avoid move: ");
   Serial.println(last_avoid_move);
   if (Obstacle_flag == false){
-    Line_tracking();
+    // Line_tracking();
   }
 	// Line_tracking();
 	// Vision_tracking();
