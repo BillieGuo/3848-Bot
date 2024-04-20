@@ -95,6 +95,7 @@ float last_avoid_move_z = 0.0;
 #define LOW_SPEED 0.4
 #define MEDIUM_SPEED 0.6
 #define HIGH_SPEED 0.8
+double all_speed_set = LOW_SPEED;
 
 //WIFI
 String  message = "";
@@ -359,9 +360,9 @@ void setup(){
   // Servo Setup
   PitchServo.attach(PitchPin);
   YawServo.attach(YawPin);
-  PitchServo.write(30);
+  PitchServo.write(25);
   YawServo.write(90);
-  Gimbal_control.pitch = 30;
+  Gimbal_control.pitch = 25;
   Gimbal_control.yaw = 90;
 
   //Mode Setup
@@ -422,18 +423,18 @@ void Esp8266_recv(){
 
 //protocal: Yaw-Pitch
 void Vision_recv(){
-  // if (Serial.available() > 0) {
-  //   vision_message = Serial.readString();
-  //   delay(1);
-  //   Gimbal_control.yaw = vision_message.substring(0, vision_message.indexOf('-')).toInt();
-  //   Gimbal_control.pitch = vision_message.substring(vision_message.indexOf('-')+1).toInt();
+  if (Serial.available() > 0) {
+    vision_message = Serial.readString();
+    delay(1);
+    Gimbal_control.yaw = vision_message.substring(0, vision_message.indexOf('-')).toInt();
+    Gimbal_control.pitch = vision_message.substring(vision_message.indexOf('-')+1).toInt();
 
-  // if (Gimbal_control.target_flag == 0 && Vision.target_flag == 1){
-  //   Gimbal_control.target_flag = 1;
-  // }
-  //   Serial.println(message);
-  //   vision_message = "";
-  // }
+  if (Gimbal_control.target_flag == 0 && Vision.target_flag == 1){
+    Gimbal_control.target_flag = 1;
+  }
+    Serial.println(message);
+    vision_message = "";
+  }
 }
 
 void Data_update() {
@@ -498,7 +499,7 @@ void Chassis_Vector_to_Mecanum_Wheel_Speed(double vx, double vy, double wz){
   motor2.speed_set = wheel_speed[1];
   motor3.speed_set = wheel_speed[2];
   motor4.speed_set = wheel_speed[3];
-  motor1.  = wheel_speed[0] / 2.4 * 255;
+  motor1.pwm_set = wheel_speed[0] / 2.4 * 255;
   motor2.pwm_set = wheel_speed[1] / 2.4 * 255;
   motor3.pwm_set = wheel_speed[2] / 2.4 * 255;
   motor4.pwm_set = wheel_speed[3] / 2.4 * 255;
@@ -537,8 +538,8 @@ void Chassis_Motor_control(){
   motorPID2.Compute();
   motorPID3.Compute();
   motorPID4.Compute();
-  motor1.pwm = (motor1.speed_set*1.05 + pidout1) / 2.4 * 255;
-  motor2.pwm = (motor2.speed_set*1.05 + pidout2) / 2.4 * 255;
+  motor1.pwm = (motor1.speed_set*1.5 + pidout1) / 2.4 * 255;
+  motor2.pwm = (motor2.speed_set*1.5 + pidout2) / 2.4 * 255;
   motor3.pwm = (motor3.speed_set + pidout3) / 2.4 * 255;
   motor4.pwm = (motor4.speed_set + pidout4) / 2.4 * 255;
   CLIP(pwm1, -255, 255);
@@ -632,43 +633,43 @@ void Obstacle_avoidance(){
   switch (Infrared_combined) {
     case 0b00000: //no obstacle
       if (Front_flag && Left_flag && Right_flag){ 
-        Move(-0.4, 0.0, 0.0);
+        Move(-all_speed_set, 0.0, 0.0);
       }
       else {
-        Move(0.0, 0.4, 0.0);
+        Move(0.0, all_speed_set, 0.0);
       }
     case 0b00100: //left, go straigt
       if (Front_flag && Right_flag){ 
-        Move(0.0, -0.4, 0.0);
+        Move(0.0, -all_speed_set, 0.0);
       }
       else {
-        Move(0.0, 0.4, 0.0);
+        Move(0.0, all_speed_set, 0.0);
       }
     case 0b01000: //right, go straight
       if (Front_flag && Left_flag){ 
-        Move(0.0, -0.4, 0.0);
+        Move(0.0, -all_speed_set, 0.0);
       }
       else {
-        Move(0.0, 0.4, 0.0);
+        Move(0.0, all_speed_set, 0.0);
       }
     case 0b01100: //right and left, go straigt
       if (Front_flag){ 
-        Move(0.0, -0.4, 0.0);
+        Move(0.0, -all_speed_set, 0.0);
       }
       else {
-        Move(0.0, 0.4, 0.0);
+        Move(0.0, all_speed_set, 0.0);
       }
     case 0b10000: //back, go straight
     case 0b10100: //back and left, go straight
     case 0b11000: //back and right, go straight
     case 0b11100: //back, right and left, go straight
-      Move(0.0, 0.4, 0.0);
+      Move(0.0, all_speed_set, 0.0);
       break;
     case 0b00001: //front left, move towards right
     case 0b00010: //front right, move towards left
     case 0b00011: //front left and front right, move towards left or right
       if (Right_flag && !Left_flag){ 
-        Move(0.4, 0.0, 0.0);
+        Move(all_speed_set, 0.0, 0.0);
       }
       else if (Left_flag){
         Move(0.6, 0.0, 0.0);
@@ -677,64 +678,64 @@ void Obstacle_avoidance(){
         Move(-0.6, 0.0, 0.0);
       }
       else { 
-        Move(-0.4, 0.0, 0.0);
+        Move(-all_speed_set, 0.0, 0.0);
       }
       break;
     case 0b00101: //left and front left, move towards right
     case 0b00110: //left and front right, move towards right // actually not possible?
     case 0b00111: //left, front left and front right, move towards right
       if (!Right_flag){
-        Move(0.4, 0.0, 0.0);
+        Move(all_speed_set, 0.0, 0.0);
       }
       else {
-        Move(0.0, -0.4, 0.0);
+        Move(0.0, -all_speed_set, 0.0);
       }
       break;
     case 0b01001: //right and front left, move towards left // actually not possible?
     case 0b01010: //right and front right, move towards left 
     case 0b01011: //right, front left and front right, move towards left
       if (!Left_flag){
-        Move(-0.4, 0.0, 0.0);
+        Move(-all_speed_set, 0.0, 0.0);
       }
       else {
-        Move(0.0, -0.4, 0.0);
+        Move(0.0, -all_speed_set, 0.0);
       }
       break;
     case 0b01101: //right, left and front left, move backward
     case 0b01110: //right, left and front right, move backward
     case 0b01111: //right, left, front left and front right, move backward
-      Move(0.0, -0.4, 0.0);
+      Move(0.0, -all_speed_set, 0.0);
       break;
     case 0b10001: //back and front left, move forward right
-      Move(0.4, 0.4, 0.0);
+      Move(all_speed_set, all_speed_set, 0.0);
       break;
     case 0b10010: //back and front right, move forward left
-      Move(-0.4, 0.4, 0.0);
+      Move(-all_speed_set, all_speed_set, 0.0);
       break;
     case 0b10011: //back, front left and front right, move towards left
-      Move(-0.4, 0.0, 0.0);
+      Move(-all_speed_set, 0.0, 0.0);
       break;
     case 0b10101: //back, left and front left, move towards right
     case 0b10110: //back, left and front right, move towards right  // actually not possible?
     case 0b10111: //back, left, front left and front right, move towards right
     case 0b11001: //back, right and front left, move towards left // actually not possible?
-      Move(0.4, 0.0, 0.0);
+      Move(all_speed_set, 0.0, 0.0);
       break;
     case 0b11010: //back, right and front right, move towards left
     case 0b11011: //back, right, front left and front right, move towards left
-      Move(-0.4, 0.0, 0.0);
+      Move(-all_speed_set, 0.0, 0.0);
       break;
     case 0b11101: //back, right, left and front left, move forward right // actually not possible?
-      Move(0.4, 0.4, 0.0);
+      Move(all_speed_set, all_speed_set, 0.0);
       break;
     case 0b11110: //back, right, left and front right, move forward left // actually not possible?
-      Move(-0.4, 0.4, 0.0);
+      Move(-all_speed_set, all_speed_set, 0.0);
       break;
     case 0b11111: //back, right, left, front left and front right, can only stop // actually not possible?
       Move(0.0, 0.0, 0.0);
       break;
     default:
-      Move(0.0, 0.4, 0.0);
+      Move(0.0, all_speed_set, 0.0);
       break;
   }
   if (Chassis_control.vx != last_avoid_move_x){ // no left and right move
@@ -743,11 +744,11 @@ void Obstacle_avoidance(){
 }
 
 void Line_tracking(){
-  if (Chassis_control.move_flag == 1){
+  if (Chassis_control.move_flag == 1 && Gimbal_control.scan_cnt < 4){
     Move(0.0, 0.0, 0.0);
     return;
   }
-  if (Chassis_control.move_cnt == 1500){
+  if (Chassis_control.move_cnt == 1000){
     Chassis_control.move_flag = 1;
     Gimbal_control.scan_cnt = 0;
   }
@@ -795,25 +796,25 @@ void Line_tracking(){
     case 0b00011: // right most and middle right detect white, may be court edge, move towards right
     case 0b00110: // middle and middle right detect white, may be court edge, move towards right
     case 0b00111: // middle, middle right and right most detect white, may be court edge, move towards right
-      Move(0.4, 0.0, 0.0);
+      Move(all_speed_set, 0.0, 0.0);
       break;
     case 0b01100: // middle left detect white, may be court edge, move towards left
-      Move(-0.4, 0.0, 0.0);
+      Move(-all_speed_set, 0.0, 0.0);
       break;
     case 0b01111: // middle three + right most detect white, court edge (right corner)
       // Move(0.0, 0.0, 1.2); // rotate cw 90 degree
       // Rotate_CW_90();
       break;
     case 0b10000: // only left most detect white, may be court edge, move towards left
-      Move(-0.4, 0.0, 0.0);
+      Move(-all_speed_set, 0.0, 0.0);
       break;
     case 0b10111: // left most, middle, middle right and right detect white, may be court edge, move towards right
-      Move(0.4, 0.0, 0.0);
+      Move(all_speed_set, 0.0, 0.0);
       break;
     case 0b11000: // left most and middle left detect white, may be court edge, move towards left
     case 0b11100: // left most, middle left and middle detect white, may be court edge, move towards left
     case 0b11101: // left most, middle left, middle and right most detect white, may be court edge, move towards left
-      Move(-0.4, 0.0, 0.0);
+      Move(-all_speed_set, 0.0, 0.0);
       break;
     case 0b11110: // left most + middle three, court edge (left corner)
       // Move(0.0, 0.0, -1.2); // rotate acw 90 degree
@@ -830,7 +831,7 @@ void Line_tracking(){
         // Rotate_ACW_90();
       }
     default:
-      Move(0.0, 0.4, 0.0); // go straight
+      Move(0.0, all_speed_set, 0.0); // go straight
       break;
   }
 
@@ -846,7 +847,7 @@ void Arm_control(){
 }
 
 void Scanning(){
-  if (Gimbal_control.cnt % 300 == 0){
+  if (Gimbal_control.cnt % 400 == 0){
     Gimbal_control.yaw += 45;
     Gimbal_control.yaw %= 180;
     YawServo.write(Gimbal_control.yaw);
@@ -992,7 +993,6 @@ void Mode_switch(){
 }
 
 
-// speed_leve: 2.0f || 5.0f || 10.0f
 float debug1,debug2,debug3, debug4;
 int debug5,debug6,debug7,debug8;
 void debug(){
@@ -1002,9 +1002,9 @@ void debug(){
   // MOTORB_FORWARD(255);
   // MOTORC_FORWARD(255);
   // MOTORD_FORWARD(255);
-  // Chassis_control.vx = 0.5;
-  // Chassis_control.vy = 0.0;
-  // Chassis_control.wz = 0.0;
+  Chassis_control.vx = 0.5;
+  Chassis_control.vy = 0.0;
+  Chassis_control.wz = 0.0;
   // Serial.print("M1 ecd:");
   // Serial.println(motor1.ecd);
   // Serial.print("M1 speed:");
@@ -1084,14 +1084,14 @@ void loop()
 {
   time = millis();
   Data_update();
-  Mode_switch();
+  // Mode_switch();
   // Obstacle_avoidance();
-  if (Obstacle_flag == false){
-    Line_tracking();
-  }
+  // if (Obstacle_flag == false){
+    // Line_tracking();
+  // }
 	// Line_tracking();
 	// Vision_tracking();
-  Gimbal_motor_control();
+  // Gimbal_motor_control();
 	// Arm_control();
   Chassis_Motor_control();
 
