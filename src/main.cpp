@@ -80,6 +80,12 @@ bool Tennis_flag = false;
 bool Catching_flag = false;
 bool Catched_flag = false;
 
+// back to line
+int last_time = 0, shift_stop_time = 0;
+float last_avoid_move_x = 0.0;
+float last_avoid_move_y = 0.0;
+float last_avoid_move_z = 0.0;
+
 
 #define Wheel_Radius 0.04 //m
 #define MOTOR_KP 0.15
@@ -146,10 +152,10 @@ class Gimbal_control_t {
 
 } Gimbal_control;
 
-const double EPRA = 660;//ï¿½??é€Ÿæ¯”ï¿½??1ï¿½??660
-const double EPRB = 660;//ï¿½??é€Ÿæ¯”ï¿½??1ï¿½??660
-const double EPRC = 660;//ï¿½??é€Ÿæ¯”ï¿½??1ï¿½??660
-const double EPRD = 660;//ï¿½??é€Ÿæ¯”ï¿½??1ï¿½??660
+const double EPRA = 660;//ï¿???é€Ÿæ¯”ï¿???1ï¿???660
+const double EPRB = 660;//ï¿???é€Ÿæ¯”ï¿???1ï¿???660
+const double EPRC = 660;//ï¿???é€Ÿæ¯”ï¿???1ï¿???660
+const double EPRD = 660;//ï¿???é€Ÿæ¯”ï¿???1ï¿???660
 
 const int pwmPin1 = 12; const int dir1A = 34; const int dir1B = 35; const int encoder1A = 18; const int encoder1B = 31; // A M1
 const int pwmPin2 = 8; const int dir2A = 37; const int dir2B = 36; const int encoder2A = 19; const int encoder2B = 38; // B M2
@@ -504,6 +510,14 @@ void Motor_control(){
   // motor4.setMotor(pidout4);
 }
 
+// void Rotate_CW_90(){
+  
+// }
+
+// void Rotate_ACW_90(){
+
+// }
+
 void Move(double x, double y, double z){ // control car movement by setting x, y, z
   Chassis_control.vx = x;
   Chassis_control.vy = y;
@@ -579,6 +593,14 @@ void Obstacle_avoidance(){
   Serial.println(Left_flag);
   Serial.println("Right_flag: ");
   Serial.println(Right_flag);
+  Serial.println("Infrared_combined: ");
+  Serial.println(Infrared_combined);
+  Serial.println("Front_flag: ");
+  Serial.println(Front_flag);
+  Serial.println("Left_flag: ");
+  Serial.println(Left_flag);
+  Serial.println("Right_flag: ");
+  Serial.println(Right_flag);
 
   switch (Infrared_combined) {
     case 0b00000: //no obstacle
@@ -621,11 +643,11 @@ void Obstacle_avoidance(){
       if (Right_flag && !Left_flag){ 
         Move(0.4, 0.0, 0.0);
       }
-      else if (!Right_flag && Left_flag){ 
-        Move(-0.4, 0.0, 0.0);
+      else if (Left_flag){
+        Move(0.6, 0.0, 0.0);
       }
-      else if (Right_flag && Left_flag){ 
-        Move(0.0, -0.4, 0.0);
+      else if (Right_flag){
+        Move(-0.6, 0.0, 0.0);
       }
       else { 
         Move(-0.4, 0.0, 0.0);
@@ -688,6 +710,9 @@ void Obstacle_avoidance(){
       Move(0.0, 0.4, 0.0);
       break;
   }
+  if (Chassis_control.vx != last_avoid_move_x){ // no left and right move
+    shift_stop_time = millis();
+  }
 }
 
 void Line_tracking(){
@@ -738,8 +763,7 @@ void Line_tracking(){
     case 0b11001: // left most, middle left and right most detect white, not court edge, ignore
     case 0b11010: // left most, middle left and middle right detect white, not court edge, ignore
     case 0b11011: // left most, middle left, middle right and right most detect white, not court edge, ignore
-    case 0b11111: // all detect white, court edge (crossroad)
-      Move(0.0, 0.4, 0.0); // go straight
+      Move(0.0, 0.6, 0.0); // go straight
       break;
     case 0b00001: // only right most detect white, may be court edge, move towards right
     case 0b00011: // right most and middle right detect white, may be court edge, move towards right
@@ -751,7 +775,8 @@ void Line_tracking(){
       Move(-0.4, 0.0, 0.0);
       break;
     case 0b01111: // middle three + right most detect white, court edge (right corner)
-      Move(0.0, 0.0, 2.0); // rotate left 90 degree
+      // Move(0.0, 0.0, 1.2); // rotate cw 90 degree
+      // Rotate_CW_90();
       break;
     case 0b10000: // only left most detect white, may be court edge, move towards left
       Move(-0.4, 0.0, 0.0);
@@ -765,8 +790,19 @@ void Line_tracking(){
       Move(-0.4, 0.0, 0.0);
       break;
     case 0b11110: // left most + middle three, court edge (left corner)
-      Move(0.0, 0.0, -2.0); // rotate right 90 degree
+      // Move(0.0, 0.0, -1.2); // rotate acw 90 degree
+      // Rotate_ACW_90();
       break;
+    case 0b11111: // all detect white, court edge (crossroad)
+      Serial.println("Crossroad");
+      if (Grayscale_left < Grayscale_right + 30){
+        // Move(0.0, 0.0, 1.2);
+        // Rotate_CW_90();
+      }
+      else {
+        // Move(0.0, 0.0, -1.2);
+        // Rotate_ACW_90();
+      }
     default:
       Move(0.0, 0.4, 0.0); // go straight
       break;
@@ -816,25 +852,52 @@ void Mode_switch(){
     case Mode::NORMAL:
       if (Obstacle_flag){
         Mode = Mode::OBSTACLE_DETECTED;
+        last_time = millis();
+        last_avoid_move_x = Chassis_control.vx;
+        last_avoid_move_y = Chassis_control.vy;
+        last_avoid_move_z = Chassis_control.wz;
+        Serial.print("Avoid_last:");
+        Serial.print(last_avoid_move_x);
+        Serial.print(",");
+        Serial.print(last_avoid_move_y);
+        Serial.print(",");
+        Serial.println(last_avoid_move_z);
+        Serial.println("Mode switch to OBSTACLE_DETECTED");
+        break;
       }
       else if (Tennis_flag){
         Mode = Mode::TENNIS_DETECTED;
       }
       Obstacle_avoidance();
       Line_tracking();
-      Vision_tracking();
-      Gimbal_motor_control();
+      // Vision_tracking();
+      // Gimbal_motor_control();
+      Serial.println("Mode:: NORMAL");
       break;
     case Mode::OBSTACLE_DETECTED:
       if (!Obstacle_flag){
         Mode = Mode::NORMAL;
+        Move(-last_avoid_move_x, -last_avoid_move_y, -last_avoid_move_z);
+        delay(shift_stop_time - last_time);
+        Serial.print("Shift back time:");
+        Serial.println(shift_stop_time - last_time);
+        Serial.print("Reverse Avoid:");
+        Serial.print(-last_avoid_move_x);
+        Serial.print(",");
+        Serial.print(-last_avoid_move_y);
+        Serial.print(",");
+        Serial.println(-last_avoid_move_z);
+        Serial.println("Mode switch to NORMAL");
+        break;
       }
       else if (Tennis_flag){
         Mode = Mode::TENNIS_DETECTED;
+        break;
       }
       Obstacle_avoidance();
-      Vision_tracking();
-      Gimbal_motor_control();
+      // Vision_tracking();
+      // Gimbal_motor_control();
+      Serial.println("Mode:: OBSTACLE_DETECTED");
       break;
     case Mode::TENNIS_DETECTED:
       if (!Tennis_flag && !Catching_flag){
@@ -845,6 +908,7 @@ void Mode_switch(){
       }
       Vision_tracking();
       Gimbal_motor_control();
+      Serial.println("Mode:: TENNIS_DETECTED");
       break;
     case Mode::CATCHING:
       if (Catched_flag){
@@ -853,6 +917,7 @@ void Mode_switch(){
       Vision_tracking();
       Arm_control();
       Gimbal_motor_control();
+      Serial.println("Mode:: CATCHING");
       break;
     case Mode::CATCHED:
       if (!Catched_flag){
@@ -863,6 +928,7 @@ void Mode_switch(){
       Vision_tracking();
       Arm_control();
       Gimbal_motor_control();
+      Serial.println("Mode:: CATCHED");
       break;
     default:
       break;
@@ -929,6 +995,16 @@ void debug(){
   // Serial.println(Grayscale_middle_right);
   // Serial.print("Grayscale_right: ");
   // Serial.println(Grayscale_right);
+  // Serial.print("Grayscale_left: ");
+  // Serial.println(Grayscale_left);
+  // Serial.print("Grayscale_middle_left: ");
+  // Serial.println(Grayscale_middle_left);
+  // Serial.print("Grayscale_middle: ");
+  // Serial.println(Grayscale_middle);
+  // Serial.print("Grayscale_middle_right: ");
+  // Serial.println(Grayscale_middle_right);
+  // Serial.print("Grayscale_right: ");
+  // Serial.println(Grayscale_right);
 
   // MOTORA_FORWARD(0);
   // MOTORB_FORWARD(0);
@@ -945,11 +1021,8 @@ void loop()
 {
   time = millis();
   Data_update();
-  // Mode_switch();
+  Mode_switch();
   // Obstacle_avoidance();
-  if (Obstacle_flag == false){
-    // Line_tracking();
-  }
 	// Line_tracking();
 	// Vision_tracking();
   Gimbal_motor_control();
