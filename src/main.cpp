@@ -86,6 +86,9 @@ bool Catched_flag = false;
 #define MOTOR_KI 0.0
 #define MOTOR_KD 0.0
 #define CLIP(x, min, max) if (x < min) x = min; if (x > max) x = max;
+#define LOW_SPEED 0.4
+#define MEDIUM_SPEED 0.6
+#define HIGH_SPEED 0.8
 
 //WIFI
 String  message = "";
@@ -132,6 +135,7 @@ class Chassis_control_t {
     String wifi_cmd;
     int move_cnt;
     int move_flag;
+    int target_dir;
 
 } Chassis_control;
 
@@ -143,13 +147,25 @@ class Gimbal_control_t {
     int cnt;
     int scan_cnt;
     int scan_flag;
+    int target;
+    int target_flag;
 
 } Gimbal_control;
 
-const double EPRA = 660;//�??速比�??1�??660
-const double EPRB = 660;//�??速比�??1�??660
-const double EPRC = 660;//�??速比�??1�??660
-const double EPRD = 660;//�??速比�??1�??660
+class Vision_t {
+  private:
+
+  public:
+    int x, y;
+    int yaw_dir;
+    int target_flag;
+
+} Vision;
+
+const double EPRA = 660;
+const double EPRB = 660;
+const double EPRC = 660;
+const double EPRD = 660;
 
 const int pwmPin1 = 12; const int dir1A = 34; const int dir1B = 35; const int encoder1A = 18; const int encoder1B = 31; // A M1
 const int pwmPin2 = 8; const int dir2A = 37; const int dir2B = 36; const int encoder2A = 19; const int encoder2B = 38; // B M2
@@ -339,6 +355,8 @@ void setup(){
   YawServo.attach(YawPin);
   PitchServo.write(30);
   YawServo.write(90);
+  Gimbal_control.pitch = 30;
+  Gimbal_control.yaw = 90;
 
   //Mode Setup
   Mode = Mode::NORMAL; // original mode == NORMAL
@@ -403,6 +421,10 @@ void Vision_recv(){
   //   delay(1);
   //   Gimbal_control.yaw = vision_message.substring(0, vision_message.indexOf('-')).toInt();
   //   Gimbal_control.pitch = vision_message.substring(vision_message.indexOf('-')+1).toInt();
+
+  // if (Gimbal_control.target_flag == 0 && Vision.target_flag == 1){
+  //   Gimbal_control.target_flag = 1;
+  // }
   //   Serial.println(message);
   //   vision_message = "";
   // }
@@ -446,6 +468,12 @@ void Data_update() {
   // Vision_recv();
 }
 
+void Move(double x, double y, double z){ // control car movement by setting x, y, z
+  Chassis_control.vx = x;
+  Chassis_control.vy = y;
+  Chassis_control.wz = z;
+}
+
 // Motor implementation
 // M1/A ----- M2/B
 //   |          |
@@ -464,32 +492,49 @@ void Chassis_Vector_to_Mecanum_Wheel_Speed(double vx, double vy, double wz){
   motor2.speed_set = wheel_speed[1];
   motor3.speed_set = wheel_speed[2];
   motor4.speed_set = wheel_speed[3];
-  motor1.pwm_set = wheel_speed[0] / 2.4 * 255;
+  motor1.  = wheel_speed[0] / 2.4 * 255;
   motor2.pwm_set = wheel_speed[1] / 2.4 * 255;
   motor3.pwm_set = wheel_speed[2] / 2.4 * 255;
   motor4.pwm_set = wheel_speed[3] / 2.4 * 255;
 }
 
 // speed of motor 0-2.4 from pwm 0-255
-void Motor_control(){
+void Chassis_Motor_control(){
+  
+  if (Mode == Mode::TENNIS_DETECTED){
+    if (Gimbal_control.target_flag == 1){
+      Move(0.0, 0.0, 0.0);
+    }
+    switch (Chassis_control.target_dir){
+      case 0:
+        Move(0.0, 0.0, 0.5);
+        if (Gimbal_control.target_flag == 3){
+          Move(0.0, 0.0, 0.3);
+        }
+        break;
+      case 1:
+        Move(0.0, 0.0, -0.5);
+        if (Gimbal_control.target_flag == 3){
+          Move(0.0, 0.0, -0.3);
+        }
+        break;
+      case 2:
+        Move(0.0, 0.5, 0.0);
+
+        break;
+    }
+  }
+
   Chassis_Vector_to_Mecanum_Wheel_Speed(Chassis_control.vx, Chassis_control.vy, Chassis_control.wz);
 
   motorPID1.Compute();
   motorPID2.Compute();
   motorPID3.Compute();
   motorPID4.Compute();
-  pidout1 = pidout1 / 2.4 * 255;
-  pidout2 = pidout2 / 2.4 * 255;
-  pidout3 = pidout3 / 2.4 * 255;
-  pidout4 = pidout4 / 2.4 * 255;
-  motor1.pwm = motor1.speed_set / 2.4 * 255;
-  motor2.pwm = motor2.speed_set / 2.4 * 255;
-  motor3.pwm = motor3.speed_set / 2.4 * 255;
-  motor4.pwm = motor4.speed_set / 2.4 * 255;
-  motor1.pwm = motor1.pwm + pidout1;
-  motor2.pwm = motor2.pwm + pidout2;
-  motor3.pwm = motor3.pwm + pidout3;
-  motor4.pwm = motor4.pwm + pidout4;
+  motor1.pwm = (motor1.speed_set*1.05 + pidout1) / 2.4 * 255;
+  motor2.pwm = (motor2.speed_set*1.05 + pidout2) / 2.4 * 255;
+  motor3.pwm = (motor3.speed_set + pidout3) / 2.4 * 255;
+  motor4.pwm = (motor4.speed_set + pidout4) / 2.4 * 255;
   CLIP(pwm1, -255, 255);
   CLIP(pwm2, -255, 255);
   CLIP(pwm3, -255, 255);
@@ -498,16 +543,6 @@ void Motor_control(){
   motor2.setMotor(motor2.pwm);
   motor3.setMotor(motor3.pwm);
   motor4.setMotor(motor4.pwm);
-  // motor1.setMotor(pidout1);
-  // motor2.setMotor(pidout2);
-  // motor3.setMotor(pidout3);
-  // motor4.setMotor(pidout4);
-}
-
-void Move(double x, double y, double z){ // control car movement by setting x, y, z
-  Chassis_control.vx = x;
-  Chassis_control.vy = y;
-  Chassis_control.wz = z;
 }
 
 void Obstacle_avoidance(){
@@ -691,14 +726,13 @@ void Obstacle_avoidance(){
 }
 
 void Line_tracking(){
-
-  if (Chassis_control.move_cnt == 1500){
-    Chassis_control.move_flag = 1;
-    Gimbal_control.scan_cnt = 0;
-  }
   if (Chassis_control.move_flag == 1){
     Move(0.0, 0.0, 0.0);
     return;
+  }
+  if (Chassis_control.move_cnt == 1500){
+    Chassis_control.move_flag = 1;
+    Gimbal_control.scan_cnt = 0;
   }
   // gray scale detect 0.1 cm tolerance
   // combine all grayscale sensor states to one value
@@ -781,11 +815,10 @@ void Vision_tracking(){
 
 void Arm_control(){
   // servo control
-
 }
 
 void Scanning(){
-  if (Gimbal_control.cnt % 200 == 0){
+  if (Gimbal_control.cnt % 300 == 0){
     Gimbal_control.yaw += 45;
     Gimbal_control.yaw %= 180;
     YawServo.write(Gimbal_control.yaw);
@@ -801,13 +834,44 @@ void Gimbal_motor_control(){
   if(Gimbal_control.scan_cnt < 4){
     Scanning();
   }
-  else {
+  else if (Gimbal_control.scan_cnt == 4){
+    Gimbal_control.yaw = 90;
+    YawServo.write(Gimbal_control.yaw);
     Gimbal_control.cnt = 0;
     Chassis_control.move_flag = 0;
     Chassis_control.move_cnt = 0;
-
+    Gimbal_control.scan_cnt += 1;
   }
-   
+
+  if (Mode == Mode::TENNIS_DETECTED){
+    if (Gimbal_control.target_flag == 1){ // first detection of tennis ball, set target for chassis to rotate and reset yaw
+      Gimbal_control.target = YawServo.read();
+      Gimbal_control.target_flag = 2;
+      YawServo.write(90);
+      delay(100);
+    }
+    else if (Gimbal_control.target_flag == 2 && Vision.target_flag == 1){ // second detection of tennis ball, set target direction directly using vision data
+      Chassis_control.target_dir = Vision.yaw_dir;
+      YawServo.write(90);
+      Gimbal_control.target_flag = 3;
+      return;
+    }
+    else if (Gimbal_control.target_flag == 3){
+      Chassis_control.target_dir = Vision.yaw_dir;
+      return;
+    }
+    
+    if (Gimbal_control.target < 88){
+      Chassis_control.target_dir = 0;
+    }
+    else if (Gimbal_control.target > 92){
+      Chassis_control.target_dir = 1;
+    }
+    else {
+      Chassis_control.target_dir = 2;
+    }
+  }
+  
 }
 
 void Mode_switch(){
@@ -937,7 +1001,14 @@ void debug(){
   
   // gimbal
   // servo1.write(180);
-  Serial.println(YawServo.read());
+  // Serial.println(YawServo.read());
+  // Serial.println(PitchServo.read());
+  // Serial.print("Scan_cnt: ");
+  // Serial.println(Gimbal_control.scan_cnt);
+  // Serial.print("move_cnt: ");
+  // Serial.println(Chassis_control.move_cnt);
+  // Serial.print("move_flag: ");
+  // Serial.println(Chassis_control.move_flag);
 
 }
 
@@ -948,13 +1019,13 @@ void loop()
   // Mode_switch();
   // Obstacle_avoidance();
   if (Obstacle_flag == false){
-    // Line_tracking();
+    Line_tracking();
   }
 	// Line_tracking();
 	// Vision_tracking();
   Gimbal_motor_control();
 	// Arm_control();
-  Motor_control();
+  Chassis_Motor_control();
 
   //debug
   debug();
