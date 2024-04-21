@@ -51,6 +51,8 @@ enum class Mode {
 #define INFRARED5 32 //back PC5
 int Infrared_front_left, Infrared_front_right;
 int Infrared_left, Infrared_right, Infrared_back;
+int Infrared_combined = 0b0000;
+
 
 //grayscale sensors
 #define GRAYSCALE1 A3 //left most PF1
@@ -61,6 +63,8 @@ int Infrared_left, Infrared_right, Infrared_back;
 double Grayscale_middle_left, Grayscale_middle_right;
 double Grayscale_middle;
 double Grayscale_left, Grayscale_right;
+int Grayscale_combined = 0b00000;
+
 
 //ultrasonic sensors
 // #define SONAR_TRIG 29 //PA7
@@ -73,7 +77,8 @@ bool Obstacle_flag = false;
 bool Front_flag = false;
 bool Left_flag = false;
 bool Right_flag = false;
-int obstacle_cnt = 0, front_cnt = 0, left_cnt = 0, right_cnt = 0;
+int retrieve_flag = 0; // 0: no retrieve, 1: front obstacle, 2: avoid obstacle, 3: conduct go left, 4:conduct go right
+int front_cnt = 0, left_cnt = 0, right_cnt = 0;
 
 // bool Line_flag = false;
 bool Tennis_flag = false;
@@ -104,7 +109,7 @@ String  message = "";
 String vision_message = "";
 
 //Servo motor
-#define PitchPin 7 // PH4 
+#define PitchPin 4 // PG5 
 #define YawPin 13 // PB7
 Servo PitchServo; // 10-150
 Servo YawServo; // 0-180
@@ -163,9 +168,9 @@ class Vision_t {
   private:
 
   public:
-    int x, y;
     int yaw_dir;
     int target_flag;
+    int catch_flag;
 
 } Vision;
 
@@ -343,7 +348,7 @@ void motor_setup(){
 
 //Where the program starts
 void setup(){
-  Serial.begin(9600); // USB serial setup
+  Serial.begin(115200); // USB serial setup
   Serial.println("Start");
 
   //Motor Setup
@@ -360,9 +365,9 @@ void setup(){
   // Servo Setup
   PitchServo.attach(PitchPin);
   YawServo.attach(YawPin);
-  PitchServo.write(25);
+  PitchServo.write(135);
   YawServo.write(90);
-  Gimbal_control.pitch = 25;
+  Gimbal_control.pitch = 135;
   Gimbal_control.yaw = 90;
 
   //Mode Setup
@@ -397,6 +402,60 @@ void Infrared_states(){
   Infrared_left = digitalRead(INFRARED4);
   Infrared_right = digitalRead(INFRARED3); 
   Infrared_back = digitalRead(INFRARED5);
+  
+  Infrared_combined = 0b0000;
+
+  if (!Infrared_front_left){ // front left infrared sensor detect obstacle, lowest digit = 1
+    Infrared_combined = Infrared_combined | 0b0001;
+    Obstacle_flag = true;
+    Front_flag = true;
+    retrieve_flag = 1;
+    front_cnt = 0;
+  }
+  if (!Infrared_front_right){ // front right infrared sensor detect obstacle, second lowest digit = 1
+    Infrared_combined = Infrared_combined | 0b0001;
+    Obstacle_flag = true;
+    Front_flag = true;
+    retrieve_flag = 1;
+    front_cnt = 0;
+  }
+  if (!Infrared_left){ // left infrared sensor detect obstacle, third lowest digit = 1
+    Infrared_combined = Infrared_combined | 0b0010;
+    Obstacle_flag = true;
+    Left_flag = true;
+    left_cnt = 0;
+  }
+  if (!Infrared_right){ // right infrared sensor detect obstacle, fourth lowest digit = 1
+    Infrared_combined = Infrared_combined | 0b0100;
+    Obstacle_flag = true;
+    Right_flag = true;
+    right_cnt = 0;
+  }
+  if (!Infrared_back){ // back infrared sensor detect obstacle, highest digit = 1
+    Infrared_combined = Infrared_combined | 0b1000;
+    Obstacle_flag = true;
+  }
+  if (Infrared_combined == 0b0000){ // if all sensors detect no obstacle
+    Obstacle_flag = false;
+  }
+  if ((Infrared_combined & 0b0001) == 0b0000){ // front two sensors detect no obstacle
+    front_cnt += 1;
+    if (front_cnt >= 400){
+      Front_flag = false;
+    }
+  }
+  if ((Infrared_combined & 0b0010) == 0b0000){ // left sensor detect no obstacle
+    left_cnt += 1;
+    if (left_cnt >= 170){
+      Left_flag = false;
+    }
+  }
+  if ((Infrared_combined & 0b0100) == 0b0000){ // right sensor detect no obstacle
+    right_cnt += 1;
+    if (right_cnt >= 170){
+      Right_flag = false;
+    }
+  }
 }
 
 // Grayscale detection
@@ -406,28 +465,43 @@ void Grayscale_values(){
   Grayscale_middle = analogRead(GRAYSCALE3);
   Grayscale_left = analogRead(GRAYSCALE1);
   Grayscale_right = analogRead(GRAYSCALE5);
-  // pinMode(A8, OUTPUT);
-  // pinMode(33,OUTPUT);
-  // pinMode(A10, OUTPUT);
 
-}
+  Grayscale_combined = 0b00000;
 
-void Esp8266_recv(){
-  if (arduinoSerial.available() > 0) {
-      message = arduinoSerial.readString();
-    Serial.println(message);
-    Chassis_control.wifi_cmd = message;
-    message = "";
+  if (Grayscale_right > 900) { // right most grayscale sensor detect white line, lowest digit = 1
+    Grayscale_combined = Grayscale_combined | 0b00001;
+  }
+  if (Grayscale_middle_right > 930) { // right second grayscale sensor detect white line, second lowest digit = 1
+    Grayscale_combined = Grayscale_combined | 0b00010;
+  }
+  if (Grayscale_middle > 930) { // middle grayscale sensor detect white line, third lowest digit = 1
+    Grayscale_combined = Grayscale_combined | 0b00100;
+  }
+  if (Grayscale_middle_left > 900) { // left second grayscale sensor detect white line, fourth lowest digit = 1
+    Grayscale_combined = Grayscale_combined | 0b01000;
+  }
+  if (Grayscale_left > 930) { // left most grayscale sensor detect white line, highest digit = 1
+    Grayscale_combined = Grayscale_combined | 0b10000;
   }
 }
 
-//protocal: Yaw-Pitch
+void Esp8266_recv(){
+  // if (arduinoSerial.available() > 0) {
+  //     message = arduinoSerial.readString();
+  //   Serial.println(message);
+  //   Chassis_control.wifi_cmd = message;
+  //   message = "";
+  // }
+}
+
+//protocal: abcd
 void Vision_recv(){
   if (Serial.available() > 0) {
     vision_message = Serial.readString();
     delay(1);
-    Gimbal_control.yaw = vision_message.substring(0, vision_message.indexOf('-')).toInt();
-    Gimbal_control.pitch = vision_message.substring(vision_message.indexOf('-')+1).toInt();
+    // Vision.target_flag = vision_message[0].toint();
+    // Vision.yaw_dir = vision_message[1].toint(); // 0123
+    // Vision.catch_flag = vision_message[2].toint();
 
   if (Gimbal_control.target_flag == 0 && Vision.target_flag == 1){
     Gimbal_control.target_flag = 1;
@@ -546,8 +620,8 @@ void Chassis_Motor_control(){
   motorPID2.Compute();
   motorPID3.Compute();
   motorPID4.Compute();
-  motor1.pwm = (motor1.speed_set + pidout1) / 2.4 * 255;
-  motor2.pwm = (motor2.speed_set + pidout2) / 2.4 * 255;
+  motor1.pwm = (motor1.speed_set*1.3 + pidout1) / 2.4 * 255;
+  motor2.pwm = (motor2.speed_set*1.3 + pidout2) / 2.4 * 255;
   motor3.pwm = (motor3.speed_set + pidout3) / 2.4 * 255;
   motor4.pwm = (motor4.speed_set + pidout4) / 2.4 * 255;
   CLIP(pwm1, -255, 255);
@@ -563,109 +637,67 @@ void Chassis_Motor_control(){
 void Obstacle_avoidance(){
   // infrared 7.5 cm 
   // combine all infrared sensor states to one value
-  int Infrared_combined = 0b00000;
-
-  if (!Infrared_front_left){ // front left infrared sensor detect obstacle, lowest digit = 1
-    Infrared_combined = Infrared_combined | 0b00001;
-    Obstacle_flag = true;
-    Front_flag = true;
-    front_cnt = 0;
-  }
-  if (!Infrared_front_right){ // front right infrared sensor detect obstacle, second lowest digit = 1
-    Infrared_combined = Infrared_combined | 0b00010;
-    Obstacle_flag = true;
-    Front_flag = true;
-    front_cnt = 0;
-  }
-  if (!Infrared_left){ // left infrared sensor detect obstacle, third lowest digit = 1
-    Infrared_combined = Infrared_combined | 0b00100;
-    Obstacle_flag = true;
-    Left_flag = true;
-    left_cnt = 0;
-  }
-  // else {
-    // left_cnt += 1;
-    // if (left_cnt == 5){
-    //   Left_flag = false;
-    // }
-    // Left_flag = false;
-  // }
-  if (!Infrared_right){ // right infrared sensor detect obstacle, fourth lowest digit = 1
-    Infrared_combined = Infrared_combined | 0b01000;
-    Obstacle_flag = true;
-    Right_flag = true;
-    right_cnt = 0;
-  }
-  if (!Infrared_back){ // back infrared sensor detect obstacle, highest digit = 1
-    Infrared_combined = Infrared_combined | 0b10000;
-    Obstacle_flag = true;
-  }
-  if (Infrared_combined == 0b00000){ // if all sensors detect no obstacle
-    obstacle_cnt += 1;
-    if (obstacle_cnt >= 20){
-      Obstacle_flag = false;
-      obstacle_cnt = 0;
-    }
-  }
-  if ((Infrared_combined & 0b00011) == 0b00000){ // front two sensors detect no obstacle
-    front_cnt += 1;
-    if (front_cnt >= 20){
-      Front_flag = false;
-      front_cnt = 0;
-    }
-  }
-  if ((Infrared_combined & 0b00100) == 0b00000){ // left sensor detect no obstacle
-    left_cnt += 1;
-    if (left_cnt >= 20){
-      Left_flag = false;
-      left_cnt = 0;
-    }
-  }
-  if ((Infrared_combined & 0b01000) == 0b00000){ // right sensor detect no obstacle
-    right_cnt += 1;
-    if (right_cnt >= 20){
-      Right_flag = false;
-      right_cnt = 0;
-    }
-  }
-
-  Serial.print("Infrared_combined: ");
-  Serial.println(Infrared_combined);
-  Serial.print("Front_flag: ");
-  Serial.println(Front_flag);
-  Serial.print("Left_flag: ");
-  Serial.println(Left_flag);
-  Serial.print("Right_flag: ");
-  Serial.println(Right_flag);
+  // Serial.print("Infrared_combined: ");
+  // Serial.println(Infrared_combined);
+  // Serial.print("Front_flag: ");
+  // Serial.println(Front_flag);
+  // Serial.print("Left_flag: ");
+  // Serial.println(Left_flag);
+  // Serial.print("Right_flag: ");
+  // Serial.println(Right_flag);
+  // Serial.print("Infrared_combined: ");
+  // Serial.println(Infrared_combined);
+  // Serial.print("Front_flag: ");
+  // Serial.println(Front_flag);
+  // Serial.print("Left_flag: ");
+  // Serial.println(Left_flag);
+  // Serial.print("Right_flag: ");
+  // Serial.println(Right_flag);
+  // Serial.print("retrieve_flag: ");
+  // Serial.println(retrieve_flag);
+  // Serial.print("front_cnt: ");
+  // Serial.println(front_cnt);
+  // Serial.print("left_cnt: ");
+  // Serial.println(left_cnt);
+  // Serial.print("right_cnt: ");
+  // Serial.println(right_cnt);
 
   switch (Infrared_combined) {
-    case 0b00000: //no obstacle
+    case 0b0000: //no obstacle
       if (Front_flag && Left_flag && Right_flag){ 
         Move(0.0, -all_speed_set, 0.0);
       }
       else if (Front_flag && Left_flag && !Right_flag){
         Move(all_speed_set, 0.0, 0.0);
+        if (retrieve_flag == 1){
+          retrieve_flag = 2;
+        }
       }
-      else if (Front_flag && !Left_flag && Right_flag){
+      else if (Front_flag && Right_flag){
         Move(-all_speed_set, 0.0, 0.0);
+        if (retrieve_flag == 1){
+          retrieve_flag = 2;
+        }
       }
-      else if (Front_flag && !Left_flag && !Right_flag){
+      else if (Front_flag){
         Move(-all_speed_set, 0.0, 0.0);
-      }
-      else if (!Front_flag && Left_flag && Right_flag){
-        Move(0.0, all_speed_set, 0.0);
-      }
-      else if (!Front_flag && Left_flag && !Right_flag){
-        Move(0.0, all_speed_set, 0.0);
-      }
-      else if (!Front_flag && !Left_flag && Right_flag){
-        Move(0.0, all_speed_set, 0.0);
+        if (retrieve_flag == 1){
+          retrieve_flag = 2;
+        }
       }
       else {
         Move(0.0, all_speed_set, 0.0);
+        if (retrieve_flag == 4){
+          // delay(400);
+          Move(all_speed_set, 0.0, 0.0);
+        }
+        else if (retrieve_flag == 3){
+          // delay(400);
+          Move(-all_speed_set, 0.0, 0.0);
+        }
       }
       break;
-    case 0b00100: //left, go straigt
+    case 0b0010: //left, go straigt
       if (Front_flag && Right_flag){ 
         Move(0.0, -all_speed_set, 0.0);
       }
@@ -674,9 +706,12 @@ void Obstacle_avoidance(){
       }
       else {
         Move(0.0, all_speed_set, 0.0);
+        if (retrieve_flag == 2){
+          retrieve_flag = 3;
+        }
       }
       break;
-    case 0b01000: //right, go straight
+    case 0b0100: //right, go straight
       if (Front_flag && Left_flag){ 
         Move(0.0, -all_speed_set, 0.0);
       }
@@ -685,9 +720,12 @@ void Obstacle_avoidance(){
       }
       else {
         Move(0.0, all_speed_set, 0.0);
+        if (retrieve_flag == 2){
+          retrieve_flag = 4;
+        }
       }
       break;
-    case 0b01100: //right and left, go straigt
+    case 0b0110: //right and left, go straigt
       if (Front_flag){ 
         Move(0.0, -all_speed_set, 0.0);
       }
@@ -695,79 +733,90 @@ void Obstacle_avoidance(){
         Move(0.0, all_speed_set, 0.0);
       }
       break;
-    case 0b10000: //back, go straight
-    case 0b10100: //back and left, go straight
-    case 0b11000: //back and right, go straight
-    case 0b11100: //back, right and left, go straight
+    case 0b1000: //back, go straight
+    case 0b1010: //back and left, go straight
+    case 0b1100: //back and right, go straight
+    case 0b1110: //back, right and left, go straight
       Move(0.0, all_speed_set, 0.0);
       break;
-    case 0b00001: //front left, move towards right
-    case 0b00010: //front right, move towards left
-    case 0b00011: //front left and front right, move towards left or right
+    case 0b0001: //front left and front right, move towards left or right
       if (Left_flag && !Right_flag){
         Move(all_speed_set, 0.0, 0.0);
+        if (retrieve_flag == 1){
+          retrieve_flag = 2;
+        }
       }
       else if (Right_flag && !Left_flag){
         Move(-all_speed_set, 0.0, 0.0);
+        if (retrieve_flag == 1){
+          retrieve_flag = 2;
+        }
       }
       else if (!Left_flag && !Right_flag){
         Move(-all_speed_set, 0.0 , 0.0);
+        if (retrieve_flag == 1){
+          retrieve_flag = 2;
+        }
       }
       else { 
         Move(0.0, -all_speed_set, 0.0);
       }
       break;
-    case 0b00101: //left and front left, move towards right
-    case 0b00110: //left and front right, move towards right // actually not possible?
-    case 0b00111: //left, front left and front right, move towards right
+    case 0b0011: //left and front right, move towards right // actually not possible?
       if (!Right_flag){
         Move(all_speed_set, 0.0, 0.0);
+        if (retrieve_flag == 1){
+          retrieve_flag = 2;
+        }
       }
       else {
         Move(0.0, -all_speed_set, 0.0);
       }
       break;
-    case 0b01001: //right and front left, move towards left // actually not possible?
-    case 0b01010: //right and front right, move towards left 
-    case 0b01011: //right, front left and front right, move towards left
+    case 0b0101: //right, front left and front right, move towards left
       if (!Left_flag){
         Move(-all_speed_set, 0.0, 0.0);
+        if (retrieve_flag == 1){
+          retrieve_flag = 2;
+        }
       }
       else {
         Move(0.0, -all_speed_set, 0.0);
       }
       break;
-    case 0b01101: //right, left and front left, move backward
-    case 0b01110: //right, left and front right, move backward
-    case 0b01111: //right, left, front left and front right, move backward
+    case 0b0111: //right, left, front left and front right, move backward
       Move(0.0, -all_speed_set, 0.0);
       break;
-    case 0b10001: //back and front left, move forward right
-      Move(all_speed_set, 0.0, 0.0);
+    case 0b1001: //back and front right, move forward left
+      if (Left_flag && !Right_flag){
+        Move(all_speed_set, 0.0, 0.0);
+        if (retrieve_flag == 1){
+          retrieve_flag = 2;
+        }
+      }
+      else if (Right_flag && !Left_flag){
+        Move(-all_speed_set, 0.0, 0.0);
+        if (retrieve_flag == 1){
+          retrieve_flag = 2;
+        }
+      }
+      else if (!Left_flag && !Right_flag){
+        Move(-all_speed_set, 0.0 , 0.0);
+        if (retrieve_flag == 1){
+          retrieve_flag = 2;
+        }
+      }
+      else { 
+        Move(0.0, -all_speed_set, 0.0);
+      }
       break;
-    case 0b10010: //back and front right, move forward left
+    case 0b1101: //back, right, front left and front right, move towards left
       Move(-all_speed_set, 0.0, 0.0);
+      if (retrieve_flag == 1){
+        retrieve_flag = 2;
+      }
       break;
-    case 0b10011: //back, front left and front right, move towards left
-      Move(-all_speed_set, 0.0, 0.0);
-      break;
-    case 0b10101: //back, left and front left, move towards right
-    case 0b10110: //back, left and front right, move towards right  // actually not possible?
-    case 0b10111: //back, left, front left and front right, move towards right
-      Move(all_speed_set, 0.0, 0.0);
-      break;
-    case 0b11001: //back, right and front left, move towards left // actually not possible?
-    case 0b11010: //back, right and front right, move towards left
-    case 0b11011: //back, right, front left and front right, move towards left
-      Move(-all_speed_set, 0.0, 0.0);
-      break;
-    case 0b11101: //back, right, left and front left, move forward right // actually not possible?
-      // Move(all_speed_set, 0.0, 0.0);
-      // break;
-    case 0b11110: //back, right, left and front right, move forward left // actually not possible?
-      // Move(-all_speed_set, 0.0, 0.0);
-      // break;
-    case 0b11111: //back, right, left, front left and front right, can only stop // actually not possible?
+    case 0b1111: //back, right, left, front left and front right, can only stop // actually not possible?
       Move(0.0, 0.0, 0.0);
       break;
     default:
@@ -791,22 +840,7 @@ void Obstacle_avoidance(){
 void Line_tracking(){
   // gray scale detect 0.1 cm tolerance
   // combine all grayscale sensor states to one value
-  int Grayscale_combined = 0b00000;
-  if (Grayscale_right > 900) { // right most grayscale sensor detect white line, lowest digit = 1
-    Grayscale_combined = Grayscale_combined | 0b00001;
-  }
-  if (Grayscale_middle_right > 930) { // right second grayscale sensor detect white line, second lowest digit = 1
-    Grayscale_combined = Grayscale_combined | 0b00010;
-  }
-  if (Grayscale_middle > 930) { // middle grayscale sensor detect white line, third lowest digit = 1
-    Grayscale_combined = Grayscale_combined | 0b00100;
-  }
-  if (Grayscale_middle_left > 900) { // left second grayscale sensor detect white line, fourth lowest digit = 1
-    Grayscale_combined = Grayscale_combined | 0b01000;
-  }
-  if (Grayscale_left > 930) { // left most grayscale sensor detect white line, highest digit = 1
-    Grayscale_combined = Grayscale_combined | 0b10000;
-  }
+
   switch (Grayscale_combined){
     case 0b00000: // no white line detected
     case 0b00010: // only middle right detect white, not court edge, ignore
@@ -835,12 +869,14 @@ void Line_tracking(){
     case 0b00111: // middle, middle right and right most detect white, may be court edge, move towards right
     case 0b10111: // left most, middle, middle right and right detect white, may be court edge, move towards right
       Move(all_speed_set, 0.0, 0.0);
+      retrieve_flag = 0;
       break;
     case 0b10000: // only left most detect white, may be court edge, move towards left
     case 0b11000: // left most and middle left detect white, may be court edge, move towards left
     case 0b11100: // left most, middle left and middle detect white, may be court edge, move towards left
     case 0b11101: // left most, middle left, middle and right most detect white, may be court edge, move towards left
       Move(-all_speed_set, 0.0, 0.0);
+      retrieve_flag = 0;
       break;
     case 0b11110: // left most + middle three, court edge (left corner)
       // Move(0.0, 0.0, -1.2); // rotate acw 90 degree
@@ -851,7 +887,7 @@ void Line_tracking(){
     //   Rotate_CW_90();
       break;
     case 0b11111: // all detect white, court edge (crossroad)
-      Serial.println("Crossroad");
+      // Serial.println("Crossroad");
       if (Grayscale_left < Grayscale_right + 30){
         // Move(0.0, 0.0, 1.2);
         // Rotate_CW_90();
@@ -947,48 +983,27 @@ void Mode_switch(){
     case Mode::NORMAL:
       if (Obstacle_flag){
         Mode = Mode::OBSTACLE_DETECTED;
-        if (Chassis_control.vx != 0.0){
-          last_avoid_move_x = Chassis_control.vx;
-          last_time = millis();
-        }
-        Serial.print("Avoid_last:");
-        Serial.println(last_avoid_move_x);
-        Serial.println("Mode switch to OBSTACLE_DETECTED");
+        last_time = millis();
         break;
       }
       else if (Tennis_flag){
         Mode = Mode::TENNIS_DETECTED;
       }
       Line_tracking();
-      Obstacle_avoidance();
-      // Vision_tracking();
-      // Gimbal_motor_control();
-      Serial.println("Mode:: NORMAL");
+      Vision_tracking();
+      Gimbal_motor_control();
       break;
     case Mode::OBSTACLE_DETECTED:
-      if (!Obstacle_flag){
+      if (!Obstacle_flag && retrieve_flag == 0){
         Mode = Mode::NORMAL;
-        Move(-last_avoid_move_x, -last_avoid_move_y, -last_avoid_move_z);
-        delay(shift_stop_time - last_time);
-        Serial.print("Shift back time:");
-        Serial.println(shift_stop_time - last_time);
-        Serial.print("Reverse Avoid:");
-        Serial.print(-last_avoid_move_x);
-        Serial.print(",");
-        Serial.print(-last_avoid_move_y);
-        Serial.print(",");
-        Serial.println(-last_avoid_move_z);
-        Serial.println("Mode switch to NORMAL");
         break;
       }
-      else if (Tennis_flag){
-        Mode = Mode::TENNIS_DETECTED;
-        break;
-      }
+      // else if (Tennis_flag){
+      //   Mode = Mode::TENNIS_DETECTED;
+      //   break;
+      // }
+      Line_tracking();
       Obstacle_avoidance();
-      // Vision_tracking();
-      // Gimbal_motor_control();
-      Serial.println("Mode:: OBSTACLE_DETECTED");
       break;
     case Mode::TENNIS_DETECTED:
       if (!Tennis_flag && !Catching_flag){
@@ -999,7 +1014,6 @@ void Mode_switch(){
       }
       Vision_tracking();
       Gimbal_motor_control();
-      Serial.println("Mode:: TENNIS_DETECTED");
       break;
     case Mode::CATCHING:
       if (Catched_flag){
@@ -1008,18 +1022,15 @@ void Mode_switch(){
       Vision_tracking();
       Arm_control();
       Gimbal_motor_control();
-      Serial.println("Mode:: CATCHING");
       break;
     case Mode::CATCHED:
       if (!Catched_flag){
         Mode = Mode::NORMAL;
       }
       Line_tracking();
-      Obstacle_avoidance();
       Vision_tracking();
       Arm_control();
       Gimbal_motor_control();
-      Serial.println("Mode:: CATCHED");
       break;
     default:
       break;
@@ -1125,8 +1136,8 @@ void loop()
   time = millis();
   Data_update();
   Mode_switch();
-  // Line_tracking();
   // Obstacle_avoidance();
+  // Line_tracking();
 	// Vision_tracking();
   // Gimbal_motor_control();
   Chassis_Motor_control();
