@@ -73,7 +73,7 @@ bool Obstacle_flag = false;
 bool Front_flag = false;
 bool Left_flag = false;
 bool Right_flag = false;
-int front_cnt = 0, left_cnt = 0, right_cnt = 0;
+int obstacle_cnt = 0, front_cnt = 0, left_cnt = 0, right_cnt = 0;
 
 // bool Line_flag = false;
 bool Tennis_flag = false;
@@ -593,7 +593,10 @@ void Obstacle_avoidance(){
     Obstacle_flag = true;
   }
   if (Infrared_combined == 0b00000){ // if all sensors detect no obstacle
-    Obstacle_flag = false;
+    obstacle_cnt += 1;
+    if (obstacle_cnt >= 10){
+      Obstacle_flag = false;
+    }
   }
   if ((Infrared_combined & 0b00011) == 0b00000){ // front two sensors detect no obstacle
     front_cnt += 1;
@@ -622,25 +625,29 @@ void Obstacle_avoidance(){
   Serial.println(Left_flag);
   Serial.print("Right_flag: ");
   Serial.println(Right_flag);
-  Serial.print("Infrared_combined: ");
-  Serial.println(Infrared_combined);
-  Serial.print("Front_flag: ");
-  Serial.println(Front_flag);
-  Serial.print("Left_flag: ");
-  Serial.println(Left_flag);
-  Serial.print("Right_flag: ");
-  Serial.println(Right_flag);
 
   switch (Infrared_combined) {
     case 0b00000: //no obstacle
       if (Front_flag && Left_flag && Right_flag){ 
         Move(0.0, -all_speed_set, 0.0);
       }
-      else if (Front_flag && Left_flag){
+      else if (Front_flag && Left_flag && !Right_flag){
         Move(all_speed_set, 0.0, 0.0);
       }
-      else if (Front_flag && Right_flag){
+      else if (Front_flag && !Left_flag && Right_flag){
         Move(-all_speed_set, 0.0, 0.0);
+      }
+      else if (Front_flag && !Left_flag && !Right_flag){
+        Move(-all_speed_set, 0.0, 0.0);
+      }
+      else if (!Front_flag && Left_flag && Right_flag){
+        Move(0.0, all_speed_set, 0.0);
+      }
+      else if (!Front_flag && Left_flag && !Right_flag){
+        Move(0.0, all_speed_set, 0.0);
+      }
+      else if (!Front_flag && !Left_flag && Right_flag){
+        Move(0.0, all_speed_set, 0.0);
       }
       else {
         Move(0.0, all_speed_set, 0.0);
@@ -755,7 +762,7 @@ void Obstacle_avoidance(){
       Move(0.0, all_speed_set, 0.0);
       break;
   }
-  if (Chassis_control.vx != last_avoid_move_x){ // no left and right move
+  if (Chassis_control.vx != last_avoid_move_x || Chassis_control.vy != last_avoid_move_y || Chassis_control.wz != last_avoid_move_z){ 
     shift_stop_time = millis();
   }
 
