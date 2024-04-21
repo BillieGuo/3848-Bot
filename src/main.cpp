@@ -596,24 +596,28 @@ void Obstacle_avoidance(){
     obstacle_cnt += 1;
     if (obstacle_cnt >= 10){
       Obstacle_flag = false;
+      obstacle_cnt = 0;
     }
   }
   if ((Infrared_combined & 0b00011) == 0b00000){ // front two sensors detect no obstacle
     front_cnt += 1;
     if (front_cnt >= 10){
       Front_flag = false;
+      front_cnt = 0;
     }
   }
   if ((Infrared_combined & 0b00100) == 0b00000){ // left sensor detect no obstacle
     left_cnt += 1;
     if (left_cnt >= 10){
       Left_flag = false;
+      left_cnt = 0;
     }
   }
   if ((Infrared_combined & 0b01000) == 0b00000){ // right sensor detect no obstacle
     right_cnt += 1;
     if (right_cnt >= 10){
       Right_flag = false;
+      right_cnt = 0;
     }
   }
 
