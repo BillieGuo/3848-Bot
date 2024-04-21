@@ -52,6 +52,7 @@ enum class Mode {
 int Infrared_front_left, Infrared_front_right;
 int Infrared_left, Infrared_right, Infrared_back;
 
+
 //grayscale sensors
 #define GRAYSCALE1 A3 //left most PF1
 #define GRAYSCALE2 A2 //left second PF2
@@ -73,6 +74,7 @@ bool Obstacle_flag = false;
 bool Front_flag = false;
 bool Left_flag = false;
 bool Right_flag = false;
+int retrieve_flag = 0; // 0: no retrieve, 1: front obstacle, 2: go right after obstacle, 3: go left, 4:conduct go right, 5: conduct go left
 int front_cnt = 0, left_cnt = 0, right_cnt = 0;
 
 // bool Line_flag = false;
@@ -538,8 +540,8 @@ void Chassis_Motor_control(){
   motorPID2.Compute();
   motorPID3.Compute();
   motorPID4.Compute();
-  motor1.pwm = (motor1.speed_set + pidout1) / 2.4 * 255;
-  motor2.pwm = (motor2.speed_set + pidout2) / 2.4 * 255;
+  motor1.pwm = (motor1.speed_set*1.3 + pidout1) / 2.4 * 255;
+  motor2.pwm = (motor2.speed_set*1.3 + pidout2) / 2.4 * 255;
   motor3.pwm = (motor3.speed_set + pidout3) / 2.4 * 255;
   motor4.pwm = (motor4.speed_set + pidout4) / 2.4 * 255;
   CLIP(pwm1, -255, 255);
@@ -561,12 +563,14 @@ void Obstacle_avoidance(){
     Infrared_combined = Infrared_combined | 0b00001;
     Obstacle_flag = true;
     Front_flag = true;
+    retrieve_flag = 1;
     front_cnt = 0;
   }
   if (!Infrared_front_right){ // front right infrared sensor detect obstacle, second lowest digit = 1
     Infrared_combined = Infrared_combined | 0b00010;
     Obstacle_flag = true;
     Front_flag = true;
+    retrieve_flag = 1;
     front_cnt = 0;
   }
   if (!Infrared_left){ // left infrared sensor detect obstacle, third lowest digit = 1
@@ -597,19 +601,19 @@ void Obstacle_avoidance(){
   }
   if ((Infrared_combined & 0b00011) == 0b00000){ // front two sensors detect no obstacle
     front_cnt += 1;
-    if (front_cnt >= 10){
+    if (front_cnt >= 50){
       Front_flag = false;
     }
   }
   if ((Infrared_combined & 0b00100) == 0b00000){ // left sensor detect no obstacle
     left_cnt += 1;
-    if (left_cnt >= 10){
+    if (left_cnt >= 50){
       Left_flag = false;
     }
   }
   if ((Infrared_combined & 0b01000) == 0b00000){ // right sensor detect no obstacle
     right_cnt += 1;
-    if (right_cnt >= 10){
+    if (right_cnt >= 50){
       Right_flag = false;
     }
   }
@@ -638,12 +642,32 @@ void Obstacle_avoidance(){
       }
       else if (Front_flag && Left_flag){
         Move(all_speed_set, 0.0, 0.0);
+        if (retrieve_flag == 1){
+          retrieve_flag = 3;
+        }
       }
       else if (Front_flag && Right_flag){
         Move(-all_speed_set, 0.0, 0.0);
+        if (retrieve_flag == 1){
+          retrieve_flag = 2;
+        }
+      }
+      else if (Front_flag){
+        Move(-all_speed_set, 0.0, 0.0);
+        if (retrieve_flag == 1){
+          retrieve_flag = 2;
+        }
       }
       else {
         Move(0.0, all_speed_set, 0.0);
+        if (retrieve_flag == 4){
+          delay(800);
+          Move(all_speed_set, 0.0, 0.0);
+        }
+        else if (retrieve_flag == 5){
+          delay(800);
+          Move(-all_speed_set, 0.0, 0.0);
+        }
       }
       break;
     case 0b00100: //left, go straigt
@@ -655,6 +679,9 @@ void Obstacle_avoidance(){
       }
       else {
         Move(0.0, all_speed_set, 0.0);
+        if (retrieve_flag == 3){
+          retrieve_flag = 5;
+        }
       }
       break;
     case 0b01000: //right, go straight
@@ -666,6 +693,9 @@ void Obstacle_avoidance(){
       }
       else {
         Move(0.0, all_speed_set, 0.0);
+        if (retrieve_flag == 2){
+          retrieve_flag = 4;
+        }
       }
       break;
     case 0b01100: //right and left, go straigt
@@ -687,12 +717,21 @@ void Obstacle_avoidance(){
     case 0b00011: //front left and front right, move towards left or right
       if (Left_flag && !Right_flag){
         Move(all_speed_set, 0.0, 0.0);
+        if (retrieve_flag == 1){
+          retrieve_flag = 3;
+        }
       }
       else if (Right_flag && !Left_flag){
         Move(-all_speed_set, 0.0, 0.0);
+        if (retrieve_flag == 1){
+          retrieve_flag = 2;
+        }
       }
       else if (!Left_flag && !Right_flag){
         Move(-all_speed_set, 0.0 , 0.0);
+        if (retrieve_flag == 1){
+          retrieve_flag = 2;
+        }
       }
       else { 
         Move(0.0, -all_speed_set, 0.0);
@@ -703,6 +742,9 @@ void Obstacle_avoidance(){
     case 0b00111: //left, front left and front right, move towards right
       if (!Right_flag){
         Move(all_speed_set, 0.0, 0.0);
+        if (retrieve_flag == 1){
+          retrieve_flag = 3;
+        }
       }
       else {
         Move(0.0, -all_speed_set, 0.0);
@@ -713,6 +755,9 @@ void Obstacle_avoidance(){
     case 0b01011: //right, front left and front right, move towards left
       if (!Left_flag){
         Move(-all_speed_set, 0.0, 0.0);
+        if (retrieve_flag == 1){
+          retrieve_flag = 2;
+        }
       }
       else {
         Move(0.0, -all_speed_set, 0.0);
@@ -725,22 +770,37 @@ void Obstacle_avoidance(){
       break;
     case 0b10001: //back and front left, move forward right
       Move(all_speed_set, 0.0, 0.0);
+      if (retrieve_flag == 1){
+        retrieve_flag = 3;
+      }
       break;
     case 0b10010: //back and front right, move forward left
       Move(-all_speed_set, 0.0, 0.0);
+      if (retrieve_flag == 1){
+        retrieve_flag = 2;
+      }
       break;
     case 0b10011: //back, front left and front right, move towards left
       Move(-all_speed_set, 0.0, 0.0);
+      if (retrieve_flag == 1){
+        retrieve_flag = 2;
+      }
       break;
     case 0b10101: //back, left and front left, move towards right
     case 0b10110: //back, left and front right, move towards right  // actually not possible?
     case 0b10111: //back, left, front left and front right, move towards right
       Move(all_speed_set, 0.0, 0.0);
+      if (retrieve_flag == 1){
+        retrieve_flag = 3;
+      }
       break;
     case 0b11001: //back, right and front left, move towards left // actually not possible?
     case 0b11010: //back, right and front right, move towards left
     case 0b11011: //back, right, front left and front right, move towards left
       Move(-all_speed_set, 0.0, 0.0);
+      if (retrieve_flag == 1){
+        retrieve_flag = 2;
+      }
       break;
     case 0b11101: //back, right, left and front left, move forward right // actually not possible?
       // Move(all_speed_set, 0.0, 0.0);
@@ -807,12 +867,14 @@ void Line_tracking(){
     case 0b00111: // middle, middle right and right most detect white, may be court edge, move towards right
     case 0b10111: // left most, middle, middle right and right detect white, may be court edge, move towards right
       Move(all_speed_set, 0.0, 0.0);
+      retrieve_flag = 0;
       break;
     case 0b10000: // only left most detect white, may be court edge, move towards left
     case 0b11000: // left most and middle left detect white, may be court edge, move towards left
     case 0b11100: // left most, middle left and middle detect white, may be court edge, move towards left
     case 0b11101: // left most, middle left, middle and right most detect white, may be court edge, move towards left
       Move(-all_speed_set, 0.0, 0.0);
+      retrieve_flag = 0;
       break;
     case 0b11110: // left most + middle three, court edge (left corner)
       // Move(0.0, 0.0, -1.2); // rotate acw 90 degree
@@ -1100,9 +1162,9 @@ void loop()
 {
   time = millis();
   Data_update();
-  Mode_switch();
-  // Line_tracking();
-  // Obstacle_avoidance();
+  // Mode_switch();
+  Line_tracking();
+  Obstacle_avoidance();
 	// Vision_tracking();
   // Gimbal_motor_control();
   Chassis_Motor_control();
