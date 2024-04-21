@@ -82,6 +82,8 @@ int retrieve_flag = 0; // 0: no retrieve, 1: front obstacle, 2: avoid obstacle, 
 int front_cnt = 0, left_cnt = 0, right_cnt = 0;
 
 // bool Line_flag = false;
+bool Rotate_flag = false; // whether continue rotation
+int rotate_cnt = 0;
 bool Tennis_flag = false;
 bool Catching_flag = false;
 bool Catched_flag = false;
@@ -469,20 +471,32 @@ void Grayscale_values(){
 
   Grayscale_combined = 0b00000;
 
-  if (Grayscale_right > 900) { // right most grayscale sensor detect white line, lowest digit = 1
+  if (Grayscale_right > 880) { // right most grayscale sensor detect white line, lowest digit = 1
     Grayscale_combined = Grayscale_combined | 0b00001;
   }
-  if (Grayscale_middle_right > 930) { // right second grayscale sensor detect white line, second lowest digit = 1
+  if (Grayscale_middle_right > 900) { // right second grayscale sensor detect white line, second lowest digit = 1
     Grayscale_combined = Grayscale_combined | 0b00010;
   }
-  if (Grayscale_middle > 930) { // middle grayscale sensor detect white line, third lowest digit = 1
+  if (Grayscale_middle > 910) { // middle grayscale sensor detect white line, third lowest digit = 1
     Grayscale_combined = Grayscale_combined | 0b00100;
   }
   if (Grayscale_middle_left > 900) { // left second grayscale sensor detect white line, fourth lowest digit = 1
     Grayscale_combined = Grayscale_combined | 0b01000;
   }
-  if (Grayscale_left > 930) { // left most grayscale sensor detect white line, highest digit = 1
+  if (Grayscale_left > 900) { // left most grayscale sensor detect white line, highest digit = 1
     Grayscale_combined = Grayscale_combined | 0b10000;
+  }
+
+  if (Grayscale_combined == 0b01111 || 0b11110 || 0b11111){ // if more than three grayscale sensors detect white line
+    Rotate_flag = true;
+  }
+
+  if (Grayscale_combined == 0b01110 || 0b11100 || 0b00111){ // if three grayscale sensors detect white line
+    rotate_cnt += 1;
+    if (rotate_cnt >= 80){
+      Rotate_flag = false;
+      rotate_cnt = 0;
+    }
   }
 }
 
@@ -556,6 +570,14 @@ void Data_update() {
   // respbreey pi comm / Esp8266 || Serial 
   Esp8266_recv();
   // Vision_recv();
+}
+
+void Rotate_ACW_90(){
+  
+}
+
+void Rotate_CW_90(){
+  
 }
 
 void Move(double x, double y, double z){ // control car movement by setting x, y, z
@@ -668,7 +690,7 @@ void Obstacle_avoidance(){
       if (Front_flag && Left_flag && Right_flag){ 
         Move(0.0, -all_speed_set, 0.0);
       }
-      else if (Front_flag && Left_flag){
+      else if (Front_flag && Left_flag && !Right_flag){
         Move(all_speed_set, 0.0, 0.0);
         if (retrieve_flag == 1){
           retrieve_flag = 2;
@@ -824,9 +846,18 @@ void Obstacle_avoidance(){
       Move(0.0, all_speed_set, 0.0);
       break;
   }
-  if (Chassis_control.vx != last_avoid_move_x){ // no left and right move
+  if (Chassis_control.vx != last_avoid_move_x || Chassis_control.vy != last_avoid_move_y || Chassis_control.wz != last_avoid_move_z){ 
     shift_stop_time = millis();
   }
+
+  // debug
+  Serial.print("Chassis_control.vx: ");
+  Serial.println(Chassis_control.vx);
+  Serial.print("Chassis_control.vy: ");
+  Serial.println(Chassis_control.vy);
+  Serial.print("Chassis_control.wz: ");
+  Serial.println(Chassis_control.wz);
+
 }
 
 void Line_tracking(){
@@ -871,21 +902,29 @@ void Line_tracking(){
       retrieve_flag = 0;
       break;
     case 0b11110: // left most + middle three, court edge (left corner)
-      // Move(0.0, 0.0, -1.2); // rotate acw 90 degree
+      if (Rotate_flag){
+        Move(0.0, 0.0, -all_speed_set); // rotate acw 90 degree
+      }
       // Rotate_ACW_90();
       break;
     case 0b01111: // middle three + right most detect white, court edge (right corner)
-    //   Move(0.0, 0.0, 1.2); // rotate cw 90 degree
+      if (Rotate_flag){
+        Move(0.0, 0.0, all_speed_set); // rotate cw 90 degree
+      }
     //   Rotate_CW_90();
       break;
     case 0b11111: // all detect white, court edge (crossroad)
       // Serial.println("Crossroad");
       if (Grayscale_left < Grayscale_right + 30){
-        // Move(0.0, 0.0, 1.2);
+        if (Rotate_flag){
+          Move(0.0, 0.0, all_speed_set);
+        }
         // Rotate_CW_90();
       }
       else {
-        // Move(0.0, 0.0, -1.2);
+        if (Rotate_flag){
+          Move(0.0, 0.0, -all_speed_set);
+        }
         // Rotate_ACW_90();
       }
     default:
