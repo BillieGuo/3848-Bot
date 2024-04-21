@@ -109,7 +109,7 @@ String  message = "";
 String vision_message = "";
 
 //Servo motor
-#define PitchPin 7 // PH4 
+#define PitchPin 4 // PG5 
 #define YawPin 13 // PB7
 Servo PitchServo; // 10-150
 Servo YawServo; // 0-180
@@ -365,9 +365,9 @@ void setup(){
   // Servo Setup
   PitchServo.attach(PitchPin);
   YawServo.attach(YawPin);
-  PitchServo.write(25);
+  PitchServo.write(135);
   YawServo.write(90);
-  Gimbal_control.pitch = 25;
+  Gimbal_control.pitch = 135;
   Gimbal_control.yaw = 90;
 
   //Mode Setup
