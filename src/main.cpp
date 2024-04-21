@@ -935,16 +935,12 @@ void Mode_switch(){
     case Mode::NORMAL:
       if (Obstacle_flag){
         Mode = Mode::OBSTACLE_DETECTED;
-        last_time = millis();
-        last_avoid_move_x = Chassis_control.vx;
-        last_avoid_move_y = Chassis_control.vy;
-        last_avoid_move_z = Chassis_control.wz;
+        if (Chassis_control.vx != 0.0){
+          last_avoid_move_x = Chassis_control.vx;
+          last_time = millis();
+        }
         Serial.print("Avoid_last:");
-        Serial.print(last_avoid_move_x);
-        Serial.print(",");
-        Serial.print(last_avoid_move_y);
-        Serial.print(",");
-        Serial.println(last_avoid_move_z);
+        Serial.println(last_avoid_move_x);
         Serial.println("Mode switch to OBSTACLE_DETECTED");
         break;
       }
