@@ -614,22 +614,22 @@ void Obstacle_avoidance(){
     }
   }
 
-  // Serial.print("Infrared_combined: ");
-  // Serial.println(Infrared_combined);
-  // Serial.print("Front_flag: ");
-  // Serial.println(Front_flag);
-  // Serial.print("Left_flag: ");
-  // Serial.println(Left_flag);
-  // Serial.print("Right_flag: ");
-  // Serial.println(Right_flag);
-  // Serial.print("Infrared_combined: ");
-  // Serial.println(Infrared_combined);
-  // Serial.print("Front_flag: ");
-  // Serial.println(Front_flag);
-  // Serial.print("Left_flag: ");
-  // Serial.println(Left_flag);
-  // Serial.print("Right_flag: ");
-  // Serial.println(Right_flag);
+  Serial.print("Infrared_combined: ");
+  Serial.println(Infrared_combined);
+  Serial.print("Front_flag: ");
+  Serial.println(Front_flag);
+  Serial.print("Left_flag: ");
+  Serial.println(Left_flag);
+  Serial.print("Right_flag: ");
+  Serial.println(Right_flag);
+  Serial.print("Infrared_combined: ");
+  Serial.println(Infrared_combined);
+  Serial.print("Front_flag: ");
+  Serial.println(Front_flag);
+  Serial.print("Left_flag: ");
+  Serial.println(Left_flag);
+  Serial.print("Right_flag: ");
+  Serial.println(Right_flag);
 
   switch (Infrared_combined) {
     case 0b00000: //no obstacle
@@ -758,6 +758,15 @@ void Obstacle_avoidance(){
   if (Chassis_control.vx != last_avoid_move_x){ // no left and right move
     shift_stop_time = millis();
   }
+
+  // debug
+  Serial.print("Chassis_control.vx: ");
+  Serial.println(Chassis_control.vx);
+  Serial.print("Chassis_control.vy: ");
+  Serial.println(Chassis_control.vy);
+  Serial.print("Chassis_control.wz: ");
+  Serial.println(Chassis_control.wz);
+
 }
 
 void Line_tracking(){
