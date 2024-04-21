@@ -35,6 +35,7 @@ int MIN_VALUE = 300;
 
 // enum class for states with different function executions
 enum class Mode {
+  MANUAL, //Wifi communication 
   NORMAL, // Obstacle avoidance + Line tracking + Tennis ball detection + Wifi communication
   OBSTACLE_DETECTED, // -line tracking, when obstacle detected
   TENNIS_DETECTED, // -obstacle avoidance, when tennis ball detected but not catched
@@ -372,7 +373,7 @@ void setup(){
 
   //Mode Setup
   Mode = Mode::NORMAL; // original mode == NORMAL
-  
+  // Mode = Mode::MANUAL; // original mode == MANUAL
   delay(1000);
 }
 
@@ -486,12 +487,20 @@ void Grayscale_values(){
 }
 
 void Esp8266_recv(){
-  // if (arduinoSerial.available() > 0) {
-  //     message = arduinoSerial.readString();
-  //   Serial.println(message);
-  //   Chassis_control.wifi_cmd = message;
-  //   message = "";
-  // }
+  if (arduinoSerial.available() > 0) {
+      message = arduinoSerial.readString();
+    // Serial.println(message);
+    Chassis_control.wifi_cmd = message;
+    if (Chassis_control.wifi_cmd == "AUTO"){
+      if (Mode != Mode::MANUAL){
+        Mode = Mode::MANUAL;
+      }
+      else {
+        Mode = Mode::NORMAL;
+      }
+    }
+    message = "";
+  }
 }
 
 //protocal: abcd
@@ -545,7 +554,7 @@ void Data_update() {
   // Get_front_distance();
 
   // respbreey pi comm / Esp8266 || Serial 
-  // Esp8266_recv();
+  Esp8266_recv();
   // Vision_recv();
 }
 
@@ -1114,18 +1123,70 @@ void debug(){
 
 }
 
+void Wifi_control(){
+  switch (Chassis_control.wifi_cmd)
+  {
+    case "F":
+      Move(0.0, all_speed_set, 0.0);
+      break;
+    case "B":
+      Move(0.0, -all_speed_set, 0.0);
+      break;
+    case "L":
+      Move(-all_speed_set, 0.0, 0.0);
+      break;
+    case "R":
+      Move(all_speed_set, 0.0, 0.0);
+      break;
+    case "CCW":
+      Move(0.0, 0.0, -all_speed_set);
+      break;
+    case "CW":
+      Move(0.0, 0.0, all_speed_set);
+      break;
+    case "STOP":
+      Move(0.0, 0.0, 0.0);
+      break;
+    case "CATCH":
+    //servo control
+    // if (servo.read() == 0)
+    //   servo.write(180);
+    // else
+    //   servo.write(0);
+      break;
+    case "V1":
+      all_speed_set = LOW_SPEED;
+      break;
+    case "V2":
+      all_speed_set = MEDIUM_SPEED;
+      break;
+    case "V3":
+      all_speed_set = HIGH_SPEED;
+      break;
+    // GIMBAL
+    default: 
+      break;
+  }
+}
+
 void loop()
 {
   time = millis();
   Data_update();
-  Mode_switch();
-  // Obstacle_avoidance();
-  // Line_tracking();
-	// Vision_tracking();
-  // Gimbal_motor_control();
-  Chassis_Motor_control();
-	// Arm_control();
-
+  if (Mode == Mode::MANUAL){
+    Wifi_control();
+    Chassis_Motor_control();
+    Arm_control();
+  }
+  else{
+    Mode_switch();
+    // Obstacle_avoidance();
+    // Line_tracking();
+    // Vision_tracking();
+    // Gimbal_motor_control();
+    Chassis_Motor_control();
+    // Arm_control();
+  }
   //debug
   debug();
 
