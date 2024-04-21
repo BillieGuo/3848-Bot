@@ -561,16 +561,19 @@ void Obstacle_avoidance(){
     Infrared_combined = Infrared_combined | 0b00001;
     Obstacle_flag = true;
     Front_flag = true;
+    front_cnt = 0;
   }
   if (!Infrared_front_right){ // front right infrared sensor detect obstacle, second lowest digit = 1
     Infrared_combined = Infrared_combined | 0b00010;
     Obstacle_flag = true;
     Front_flag = true;
+    front_cnt = 0;
   }
   if (!Infrared_left){ // left infrared sensor detect obstacle, third lowest digit = 1
     Infrared_combined = Infrared_combined | 0b00100;
     Obstacle_flag = true;
     Left_flag = true;
+    left_cnt = 0;
   }
   // else {
     // left_cnt += 1;
@@ -583,6 +586,7 @@ void Obstacle_avoidance(){
     Infrared_combined = Infrared_combined | 0b01000;
     Obstacle_flag = true;
     Right_flag = true;
+    right_cnt = 0;
   }
   if (!Infrared_back){ // back infrared sensor detect obstacle, highest digit = 1
     Infrared_combined = Infrared_combined | 0b10000;
@@ -593,65 +597,77 @@ void Obstacle_avoidance(){
   }
   if ((Infrared_combined & 0b00011) == 0b00000){ // front two sensors detect no obstacle
     front_cnt += 1;
-    if (front_cnt >= 5){
+    if (front_cnt >= 30){
       Front_flag = false;
-      front_cnt = 0;
     }
   }
   if ((Infrared_combined & 0b00100) == 0b00000){ // left sensor detect no obstacle
     left_cnt += 1;
-    if (left_cnt >= 5){
+    if (left_cnt >= 30){
       Left_flag = false;
-      left_cnt = 0;
     }
   }
   if ((Infrared_combined & 0b01000) == 0b00000){ // right sensor detect no obstacle
     right_cnt += 1;
-    if (right_cnt >= 5){
+    if (right_cnt >= 30){
       Right_flag = false;
-      right_cnt = 0;
     }
   }
 
-  Serial.println("Infrared_combined: ");
-  Serial.println(Infrared_combined);
-  Serial.println("Front_flag: ");
-  Serial.println(Front_flag);
-  Serial.println("Left_flag: ");
-  Serial.println(Left_flag);
-  Serial.println("Right_flag: ");
-  Serial.println(Right_flag);
-  Serial.println("Infrared_combined: ");
-  Serial.println(Infrared_combined);
-  Serial.println("Front_flag: ");
-  Serial.println(Front_flag);
-  Serial.println("Left_flag: ");
-  Serial.println(Left_flag);
-  Serial.println("Right_flag: ");
-  Serial.println(Right_flag);
+  // Serial.println("Infrared_combined: ");
+  // Serial.println(Infrared_combined);
+  // Serial.println("Front_flag: ");
+  // Serial.println(Front_flag);
+  // Serial.println("Left_flag: ");
+  // Serial.println(Left_flag);
+  // Serial.println("Right_flag: ");
+  // Serial.println(Right_flag);
+  // Serial.println("Infrared_combined: ");
+  // Serial.println(Infrared_combined);
+  // Serial.println("Front_flag: ");
+  // Serial.println(Front_flag);
+  // Serial.println("Left_flag: ");
+  // Serial.println(Left_flag);
+  // Serial.println("Right_flag: ");
+  // Serial.println(Right_flag);
 
   switch (Infrared_combined) {
     case 0b00000: //no obstacle
       if (Front_flag && Left_flag && Right_flag){ 
+        Move(0.0, -all_speed_set, 0.0);
+      }
+      else if (Front_flag && Left_flag){
+        Move(all_speed_set, 0.0, 0.0);
+      }
+      else if (Front_flag && Right_flag){
         Move(-all_speed_set, 0.0, 0.0);
       }
       else {
         Move(0.0, all_speed_set, 0.0);
       }
+      break;
     case 0b00100: //left, go straigt
       if (Front_flag && Right_flag){ 
         Move(0.0, -all_speed_set, 0.0);
       }
+      else if (Front_flag){
+        Move(all_speed_set, 0.0, 0.0);
+      }
       else {
         Move(0.0, all_speed_set, 0.0);
       }
+      break;
     case 0b01000: //right, go straight
       if (Front_flag && Left_flag){ 
         Move(0.0, -all_speed_set, 0.0);
       }
+      else if (Front_flag){
+        Move(-all_speed_set, 0.0, 0.0);
+      }
       else {
         Move(0.0, all_speed_set, 0.0);
       }
+      break;
     case 0b01100: //right and left, go straigt
       if (Front_flag){ 
         Move(0.0, -all_speed_set, 0.0);
@@ -659,6 +675,7 @@ void Obstacle_avoidance(){
       else {
         Move(0.0, all_speed_set, 0.0);
       }
+      break;
     case 0b10000: //back, go straight
     case 0b10100: //back and left, go straight
     case 0b11000: //back and right, go straight
@@ -668,17 +685,14 @@ void Obstacle_avoidance(){
     case 0b00001: //front left, move towards right
     case 0b00010: //front right, move towards left
     case 0b00011: //front left and front right, move towards left or right
-      if (Right_flag && !Left_flag){ 
+      if (Left_flag && !Right_flag){
         Move(all_speed_set, 0.0, 0.0);
       }
-      else if (Left_flag){
-        Move(0.6, 0.0, 0.0);
-      }
-      else if (Right_flag){
-        Move(-0.6, 0.0, 0.0);
+      else if (Right_flag && !Left_flag){
+        Move(-all_speed_set, 0.0, 0.0);
       }
       else { 
-        Move(-all_speed_set, 0.0, 0.0);
+        Move(0.0, -all_speed_set, 0.0);
       }
       break;
     case 0b00101: //left and front left, move towards right
@@ -707,10 +721,10 @@ void Obstacle_avoidance(){
       Move(0.0, -all_speed_set, 0.0);
       break;
     case 0b10001: //back and front left, move forward right
-      Move(all_speed_set, all_speed_set, 0.0);
+      Move(all_speed_set, 0.0, 0.0);
       break;
     case 0b10010: //back and front right, move forward left
-      Move(-all_speed_set, all_speed_set, 0.0);
+      Move(-all_speed_set, 0.0, 0.0);
       break;
     case 0b10011: //back, front left and front right, move towards left
       Move(-all_speed_set, 0.0, 0.0);
@@ -718,19 +732,19 @@ void Obstacle_avoidance(){
     case 0b10101: //back, left and front left, move towards right
     case 0b10110: //back, left and front right, move towards right  // actually not possible?
     case 0b10111: //back, left, front left and front right, move towards right
-    case 0b11001: //back, right and front left, move towards left // actually not possible?
       Move(all_speed_set, 0.0, 0.0);
       break;
+    case 0b11001: //back, right and front left, move towards left // actually not possible?
     case 0b11010: //back, right and front right, move towards left
     case 0b11011: //back, right, front left and front right, move towards left
       Move(-all_speed_set, 0.0, 0.0);
       break;
     case 0b11101: //back, right, left and front left, move forward right // actually not possible?
-      Move(all_speed_set, all_speed_set, 0.0);
-      break;
+      // Move(all_speed_set, 0.0, 0.0);
+      // break;
     case 0b11110: //back, right, left and front right, move forward left // actually not possible?
-      Move(-all_speed_set, all_speed_set, 0.0);
-      break;
+      // Move(-all_speed_set, 0.0, 0.0);
+      // break;
     case 0b11111: //back, right, left, front left and front right, can only stop // actually not possible?
       Move(0.0, 0.0, 0.0);
       break;
@@ -1002,9 +1016,9 @@ void debug(){
   // MOTORB_FORWARD(255);
   // MOTORC_FORWARD(255);
   // MOTORD_FORWARD(255);
-  Chassis_control.vx = 0.5;
-  Chassis_control.vy = 0.0;
-  Chassis_control.wz = 0.0;
+  // Chassis_control.vx = 0.5;
+  // Chassis_control.vy = 0.0;
+  // Chassis_control.wz = 0.0;
   // Serial.print("M1 ecd:");
   // Serial.println(motor1.ecd);
   // Serial.print("M1 speed:");
@@ -1085,15 +1099,14 @@ void loop()
   time = millis();
   Data_update();
   // Mode_switch();
-  // Obstacle_avoidance();
+  Obstacle_avoidance();
   // if (Obstacle_flag == false){
-    // Line_tracking();
+    Line_tracking();
   // }
-	// Line_tracking();
 	// Vision_tracking();
-  // Gimbal_motor_control();
-	// Arm_control();
+  Gimbal_motor_control();
   Chassis_Motor_control();
+	// Arm_control();
 
   //debug
   debug();
