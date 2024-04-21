@@ -804,27 +804,16 @@ void Line_tracking(){
     case 0b11001: // left most, middle left and right most detect white, not court edge, ignore
     case 0b11010: // left most, middle left and middle right detect white, not court edge, ignore
     case 0b11011: // left most, middle left, middle right and right most detect white, not court edge, ignore
-      Move(0.0, 0.6, 0.0); // go straight
+      Move(0.0, all_speed_set, 0.0); // go straight
       break;
     case 0b00001: // only right most detect white, may be court edge, move towards right
     case 0b00011: // right most and middle right detect white, may be court edge, move towards right
     case 0b00110: // middle and middle right detect white, may be court edge, move towards right
     case 0b00111: // middle, middle right and right most detect white, may be court edge, move towards right
-      Move(all_speed_set, 0.0, 0.0);
-      break;
-    case 0b01100: // middle left detect white, may be court edge, move towards left
-      Move(-all_speed_set, 0.0, 0.0);
-      break;
-    case 0b01111: // middle three + right most detect white, court edge (right corner)
-      // Move(0.0, 0.0, 1.2); // rotate cw 90 degree
-      // Rotate_CW_90();
-      break;
-    case 0b10000: // only left most detect white, may be court edge, move towards left
-      Move(-all_speed_set, 0.0, 0.0);
-      break;
     case 0b10111: // left most, middle, middle right and right detect white, may be court edge, move towards right
       Move(all_speed_set, 0.0, 0.0);
       break;
+    case 0b10000: // only left most detect white, may be court edge, move towards left
     case 0b11000: // left most and middle left detect white, may be court edge, move towards left
     case 0b11100: // left most, middle left and middle detect white, may be court edge, move towards left
     case 0b11101: // left most, middle left, middle and right most detect white, may be court edge, move towards left
@@ -833,6 +822,10 @@ void Line_tracking(){
     case 0b11110: // left most + middle three, court edge (left corner)
       // Move(0.0, 0.0, -1.2); // rotate acw 90 degree
       // Rotate_ACW_90();
+      break;
+    case 0b01111: // middle three + right most detect white, court edge (right corner)
+    //   Move(0.0, 0.0, 1.2); // rotate cw 90 degree
+    //   Rotate_CW_90();
       break;
     case 0b11111: // all detect white, court edge (crossroad)
       Serial.println("Crossroad");
