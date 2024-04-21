@@ -88,7 +88,7 @@ float last_avoid_move_z = 0.0;
 
 
 #define Wheel_Radius 0.04 //m
-#define MOTOR_KP 0.15
+#define MOTOR_KP 0.4
 #define MOTOR_KI 0.0
 #define MOTOR_KD 0.0
 #define CLIP(x, min, max) if (x < min) x = min; if (x > max) x = max;
@@ -538,8 +538,8 @@ void Chassis_Motor_control(){
   motorPID2.Compute();
   motorPID3.Compute();
   motorPID4.Compute();
-  motor1.pwm = (motor1.speed_set*1.5 + pidout1) / 2.4 * 255;
-  motor2.pwm = (motor2.speed_set*1.5 + pidout2) / 2.4 * 255;
+  motor1.pwm = (motor1.speed_set + pidout1) / 2.4 * 255;
+  motor2.pwm = (motor2.speed_set + pidout2) / 2.4 * 255;
   motor3.pwm = (motor3.speed_set + pidout3) / 2.4 * 255;
   motor4.pwm = (motor4.speed_set + pidout4) / 2.4 * 255;
   CLIP(pwm1, -255, 255);
@@ -597,38 +597,38 @@ void Obstacle_avoidance(){
   }
   if ((Infrared_combined & 0b00011) == 0b00000){ // front two sensors detect no obstacle
     front_cnt += 1;
-    if (front_cnt >= 30){
+    if (front_cnt >= 10){
       Front_flag = false;
     }
   }
   if ((Infrared_combined & 0b00100) == 0b00000){ // left sensor detect no obstacle
     left_cnt += 1;
-    if (left_cnt >= 30){
+    if (left_cnt >= 10){
       Left_flag = false;
     }
   }
   if ((Infrared_combined & 0b01000) == 0b00000){ // right sensor detect no obstacle
     right_cnt += 1;
-    if (right_cnt >= 30){
+    if (right_cnt >= 10){
       Right_flag = false;
     }
   }
 
-  // Serial.println("Infrared_combined: ");
+  // Serial.print("Infrared_combined: ");
   // Serial.println(Infrared_combined);
-  // Serial.println("Front_flag: ");
+  // Serial.print("Front_flag: ");
   // Serial.println(Front_flag);
-  // Serial.println("Left_flag: ");
+  // Serial.print("Left_flag: ");
   // Serial.println(Left_flag);
-  // Serial.println("Right_flag: ");
+  // Serial.print("Right_flag: ");
   // Serial.println(Right_flag);
-  // Serial.println("Infrared_combined: ");
+  // Serial.print("Infrared_combined: ");
   // Serial.println(Infrared_combined);
-  // Serial.println("Front_flag: ");
+  // Serial.print("Front_flag: ");
   // Serial.println(Front_flag);
-  // Serial.println("Left_flag: ");
+  // Serial.print("Left_flag: ");
   // Serial.println(Left_flag);
-  // Serial.println("Right_flag: ");
+  // Serial.print("Right_flag: ");
   // Serial.println(Right_flag);
 
   switch (Infrared_combined) {
@@ -690,6 +690,9 @@ void Obstacle_avoidance(){
       }
       else if (Right_flag && !Left_flag){
         Move(-all_speed_set, 0.0, 0.0);
+      }
+      else if (!Left_flag && !Right_flag){
+        Move(-all_speed_set, 0.0 , 0.0);
       }
       else { 
         Move(0.0, -all_speed_set, 0.0);
@@ -758,14 +761,6 @@ void Obstacle_avoidance(){
 }
 
 void Line_tracking(){
-  if (Chassis_control.move_flag == 1 && Gimbal_control.scan_cnt < 4){
-    Move(0.0, 0.0, 0.0);
-    return;
-  }
-  if (Chassis_control.move_cnt == 1000){
-    Chassis_control.move_flag = 1;
-    Gimbal_control.scan_cnt = 0;
-  }
   // gray scale detect 0.1 cm tolerance
   // combine all grayscale sensor states to one value
   int Grayscale_combined = 0b00000;
@@ -840,6 +835,14 @@ void Line_tracking(){
     default:
       Move(0.0, all_speed_set, 0.0); // go straight
       break;
+  }
+  if (Chassis_control.move_flag == 1 && Gimbal_control.scan_cnt < 4){
+    Move(0.0, 0.0, 0.0);
+    return;
+  }
+  if (Chassis_control.move_cnt == 1000){
+    Chassis_control.move_flag = 1;
+    Gimbal_control.scan_cnt = 0;
   }
 
   Chassis_control.move_cnt += 1;
@@ -932,8 +935,8 @@ void Mode_switch(){
       else if (Tennis_flag){
         Mode = Mode::TENNIS_DETECTED;
       }
-      Obstacle_avoidance();
       Line_tracking();
+      Obstacle_avoidance();
       // Vision_tracking();
       // Gimbal_motor_control();
       Serial.println("Mode:: NORMAL");
@@ -987,8 +990,8 @@ void Mode_switch(){
       if (!Catched_flag){
         Mode = Mode::NORMAL;
       }
-      Obstacle_avoidance();
       Line_tracking();
+      Obstacle_avoidance();
       Vision_tracking();
       Arm_control();
       Gimbal_motor_control();
@@ -1025,6 +1028,12 @@ void debug(){
   // Serial.print("M1 pwm_set: ");
   // Serial.println(motor1.speed_set / 2.4 * 255);
   // Serial.println(motor1.speed); // serialport debug
+  // Serial.print("vx: ");
+  // Serial.println(Chassis_control.vx);
+  // Serial.print("vy: ");
+  // Serial.println(Chassis_control.vy);
+  // Serial.print("wz: ");
+  // Serial.println(Chassis_control.wz);
 
   // Serial.println("M1 pwm:");
   // Serial.println(motor1.pwm);
@@ -1091,13 +1100,11 @@ void loop()
 {
   time = millis();
   Data_update();
-  // Mode_switch();
-  Obstacle_avoidance();
-  // if (Obstacle_flag == false){
-    Line_tracking();
-  // }
+  Mode_switch();
+  // Line_tracking();
+  // Obstacle_avoidance();
 	// Vision_tracking();
-  Gimbal_motor_control();
+  // Gimbal_motor_control();
   Chassis_Motor_control();
 	// Arm_control();
 
