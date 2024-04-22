@@ -35,13 +35,14 @@ int MIN_VALUE = 300;
 
 // enum class for states with different function executions
 enum class Mode {
-  MANUAL, //Wifi communication 
+   //Wifi communication enum class Mode {
+  WIFI_MANUAL, //Wifi communication 
   NORMAL, // Obstacle avoidance + Line tracking + Tennis ball detection + Wifi communication
   OBSTACLE_DETECTED, // -line tracking, when obstacle detected
   TENNIS_DETECTED, // -obstacle avoidance, when tennis ball detected but not catched
   CATCHING, // +Tennis ball catch, -obstacle avoidance, -line tracking, when catching tennis ball
-  CATCHED// +Tennis ball catch, when tennis ball catched by arm
-}Mode;
+  CATCHED // +Tennis ball catch, when tennis ball catched by arm
+} Mode;
 
 
 //infrared sensors ||left:out-gnd-vcc:right||
@@ -381,7 +382,7 @@ void setup(){
 
   //Mode Setup
   Mode = Mode::NORMAL; // original mode == NORMAL
-  Mode = Mode::MANUAL; // original mode == MANUAL
+  Mode = Mode::WIFI_MANUAL; // original mode == WIFI_MANUAL
   delay(1000);
 }
 
@@ -511,9 +512,10 @@ void Esp8266_recv(){
       message = arduinoSerial.readString();
     // Serial.println(message);
     Chassis_control.wifi_cmd = message;
+
     if (Chassis_control.wifi_cmd == "AUTO"){
-      if (Mode != Mode::MANUAL){
-        Mode = Mode::MANUAL;
+      if (Mode != Mode::WIFI_MANUAL){
+        Mode = Mode::WIFI_MANUAL;
       }
       else {
         Mode = Mode::NORMAL;
@@ -1154,56 +1156,78 @@ void debug(){
 }
 
 void Wifi_control(){
-  switch (Chassis_control.wifi_cmd)
-  {
-    case "F":
+    // CHASSIS
+    if (Chassis_control.wifi_cmd == "F"){
       Move(0.0, all_speed_set, 0.0);
-      break;
-    case "B":
+    }
+    else if (Chassis_control.wifi_cmd == "B"){
       Move(0.0, -all_speed_set, 0.0);
-      break;
-    case "L":
+    }
+    else if (Chassis_control.wifi_cmd == "L"){
       Move(-all_speed_set, 0.0, 0.0);
-      break;
-    case "R":
+    }
+    else if (Chassis_control.wifi_cmd == "R"){
       Move(all_speed_set, 0.0, 0.0);
-      break;
-    case "CCW":
+    }
+    else if (Chassis_control.wifi_cmd == "CCW"){
       Move(0.0, 0.0, -all_speed_set);
-      break;
-    case "CW":
+    }
+    else if (Chassis_control.wifi_cmd == "CW"){
       Move(0.0, 0.0, all_speed_set);
-      break;
-    case "STOP":
+    }
+    else if (Chassis_control.wifi_cmd == "STOP"){
       Move(0.0, 0.0, 0.0);
-      break;
-    case "CATCH":
-    //servo control
-      if (servo.read() == 95)
-        servo.write(60);
+    }
+    // SERVO ARM
+    else if (Chassis_control.wifi_cmd == "CATCH"){
+      if (ArmServo.read() == 95)
+        ArmServo.write(60);
       else
-        servo.write(95);
-      break;
-    case "V1":
+        ArmServo.write(95);
+    }
+    // SPEED
+    else if (Chassis_control.wifi_cmd == "V1"){
       all_speed_set = LOW_SPEED;
-      break;
-    case "V2":
+    }
+    else if (Chassis_control.wifi_cmd == "V2"){
       all_speed_set = MEDIUM_SPEED;
-      break;
-    case "V3":
+    }
+    else if (Chassis_control.wifi_cmd == "V3"){
       all_speed_set = HIGH_SPEED;
-      break;
+    }
     // GIMBAL
-    default: 
-      break;
-  }
+    else if (Chassis_control.wifi_cmd == "P+"){
+      Gimbal_control.pitch += 5;
+      PitchServo.write(Gimbal_control.pitch);
+    }
+    else if (Chassis_control.wifi_cmd == "P-"){
+      Gimbal_control.pitch -= 5;
+      PitchServo.write(Gimbal_control.pitch);
+    }
+    else if (Chassis_control.wifi_cmd == "Y-"){
+      Gimbal_control.yaw -= 5;
+      YawServo.write(Gimbal_control.yaw);
+    }
+    else if (Chassis_control.wifi_cmd == "Y+"){
+      Gimbal_control.yaw += 5;
+      YawServo.write(Gimbal_control.yaw);
+    }
+    else if (Chassis_control.wifi_cmd == "INIT"){
+      Gimbal_control.pitch = 135;
+      Gimbal_control.yaw = 90;
+      PitchServo.write(Gimbal_control.pitch);
+      YawServo.write(Gimbal_control.yaw);
+    }
+    else{
+      Move(0.0, 0.0, 0.0);
+    }
 }
 
 void loop()
 {
   time = millis();
   Data_update();
-  if (Mode == Mode::MANUAL){
+  if (Mode == Mode::WIFI_MANUAL){
     Wifi_control();
     Chassis_Motor_control();
     Arm_control();
