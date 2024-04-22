@@ -112,10 +112,13 @@ String  message = "";
 String vision_message = "";
 
 //Servo motor
-#define PitchPin 4 // PG5 
+#define PitchPin  4 // PG5 
 #define YawPin 13 // PB7
+#define ArmPin 46 //PL3
 Servo PitchServo; // 10-150
 Servo YawServo; // 0-180
+Servo ArmServo; // 0-180
+int angle;
 
 class DCMotor {
   private:
@@ -368,10 +371,13 @@ void setup(){
   // Servo Setup
   PitchServo.attach(PitchPin);
   YawServo.attach(YawPin);
+  ArmServo.attach(ArmPin); // 500-2500
   PitchServo.write(135);
   YawServo.write(90);
+  // ArmServo.write(90);
   Gimbal_control.pitch = 135;
   Gimbal_control.yaw = 90;
+
 
   //Mode Setup
   Mode = Mode::NORMAL; // original mode == NORMAL
@@ -570,14 +576,6 @@ void Data_update() {
   // respbreey pi comm / Esp8266 || Serial 
   Esp8266_recv();
   // Vision_recv();
-}
-
-void Rotate_ACW_90(){
-  
-}
-
-void Rotate_CW_90(){
-  
 }
 
 void Move(double x, double y, double z){ // control car movement by setting x, y, z
@@ -850,14 +848,6 @@ void Obstacle_avoidance(){
     shift_stop_time = millis();
   }
 
-  // debug
-  Serial.print("Chassis_control.vx: ");
-  Serial.println(Chassis_control.vx);
-  Serial.print("Chassis_control.vy: ");
-  Serial.println(Chassis_control.vy);
-  Serial.print("Chassis_control.wz: ");
-  Serial.println(Chassis_control.wz);
-
 }
 
 void Line_tracking(){
@@ -949,6 +939,24 @@ void Vision_tracking(){
 
 void Arm_control(){
   // servo control
+  // Sweep from 0 to 180 degrees:
+  // for (angle = 0; angle <= 180; angle += 20) {
+  //   ArmServo.write(angle);
+  //   delay(500);
+  // }
+  // ArmServo.write(0);
+  // delay(1500);
+  // ArmServo.write(90);
+  // delay(1500);
+  // ArmServo.write(180);
+  // delay(1500);
+  // ArmServo.write(90);
+  // delay(1500);
+  // ArmServo.write(0);
+  ArmServo.write(60);
+  delay(1500);
+  ArmServo.write(95);
+  delay(1500);
 }
 
 void Scanning(){
@@ -1122,17 +1130,7 @@ void debug(){
   // Serial.print("Infrared_back: ");
   // Serial.println(Infrared_back);
 
-  //gray scale
-  // Serial.print("Grayscale_left: ");
-  // Serial.println(Grayscale_left);
-  // Serial.print("Grayscale_middle_left: ");
-  // Serial.println(Grayscale_middle_left);
-  // Serial.print("Grayscale_middle: ");
-  // Serial.println(Grayscale_middle);
-  // Serial.print("Grayscale_middle_right: ");
-  // Serial.println(Grayscale_middle_right);
-  // Serial.print("Grayscale_right: ");
-  // Serial.println(Grayscale_right);
+  // gray scale
   // Serial.print("Grayscale_left: ");
   // Serial.println(Grayscale_left);
   // Serial.print("Grayscale_middle_left: ");
@@ -1160,6 +1158,58 @@ void debug(){
   // Serial.print("move_flag: ");
   // Serial.println(Chassis_control.move_flag);
 
+  // arm servo
+  // ArmServo.write(0);
+  // delay(2000);
+  // ArmServo.write(180);
+  // delay(2000);
+
+}
+
+void Wifi_control(){
+  switch (Chassis_control.wifi_cmd)
+  {
+    case "F":
+      Move(0.0, all_speed_set, 0.0);
+      break;
+    case "B":
+      Move(0.0, -all_speed_set, 0.0);
+      break;
+    case "L":
+      Move(-all_speed_set, 0.0, 0.0);
+      break;
+    case "R":
+      Move(all_speed_set, 0.0, 0.0);
+      break;
+    case "CCW":
+      Move(0.0, 0.0, -all_speed_set);
+      break;
+    case "CW":
+      Move(0.0, 0.0, all_speed_set);
+      break;
+    case "STOP":
+      Move(0.0, 0.0, 0.0);
+      break;
+    case "CATCH":
+    //servo control
+    // if (servo.read() == 0)
+    //   servo.write(180);
+    // else
+    //   servo.write(0);
+      break;
+    case "V1":
+      all_speed_set = LOW_SPEED;
+      break;
+    case "V2":
+      all_speed_set = MEDIUM_SPEED;
+      break;
+    case "V3":
+      all_speed_set = HIGH_SPEED;
+      break;
+    // GIMBAL
+    default: 
+      break;
+  }
 }
 
 void Wifi_control(){
