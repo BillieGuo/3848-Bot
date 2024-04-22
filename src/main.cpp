@@ -374,14 +374,14 @@ void setup(){
   ArmServo.attach(ArmPin); // 500-2500
   PitchServo.write(135);
   YawServo.write(90);
-  // ArmServo.write(90);
+  ArmServo.write(95);
   Gimbal_control.pitch = 135;
   Gimbal_control.yaw = 90;
 
 
   //Mode Setup
   Mode = Mode::NORMAL; // original mode == NORMAL
-  // Mode = Mode::MANUAL; // original mode == MANUAL
+  Mode = Mode::MANUAL; // original mode == MANUAL
   delay(1000);
 }
 
@@ -939,24 +939,11 @@ void Vision_tracking(){
 
 void Arm_control(){
   // servo control
-  // Sweep from 0 to 180 degrees:
-  // for (angle = 0; angle <= 180; angle += 20) {
-  //   ArmServo.write(angle);
-  //   delay(500);
-  // }
-  // ArmServo.write(0);
+
+  // ArmServo.write(60);
   // delay(1500);
-  // ArmServo.write(90);
+  // ArmServo.write(95);
   // delay(1500);
-  // ArmServo.write(180);
-  // delay(1500);
-  // ArmServo.write(90);
-  // delay(1500);
-  // ArmServo.write(0);
-  ArmServo.write(60);
-  delay(1500);
-  ArmServo.write(95);
-  delay(1500);
 }
 
 void Scanning(){
@@ -1192,56 +1179,10 @@ void Wifi_control(){
       break;
     case "CATCH":
     //servo control
-    // if (servo.read() == 0)
-    //   servo.write(180);
-    // else
-    //   servo.write(0);
-      break;
-    case "V1":
-      all_speed_set = LOW_SPEED;
-      break;
-    case "V2":
-      all_speed_set = MEDIUM_SPEED;
-      break;
-    case "V3":
-      all_speed_set = HIGH_SPEED;
-      break;
-    // GIMBAL
-    default: 
-      break;
-  }
-}
-
-void Wifi_control(){
-  switch (Chassis_control.wifi_cmd)
-  {
-    case "F":
-      Move(0.0, all_speed_set, 0.0);
-      break;
-    case "B":
-      Move(0.0, -all_speed_set, 0.0);
-      break;
-    case "L":
-      Move(-all_speed_set, 0.0, 0.0);
-      break;
-    case "R":
-      Move(all_speed_set, 0.0, 0.0);
-      break;
-    case "CCW":
-      Move(0.0, 0.0, -all_speed_set);
-      break;
-    case "CW":
-      Move(0.0, 0.0, all_speed_set);
-      break;
-    case "STOP":
-      Move(0.0, 0.0, 0.0);
-      break;
-    case "CATCH":
-    //servo control
-    // if (servo.read() == 0)
-    //   servo.write(180);
-    // else
-    //   servo.write(0);
+      if (servo.read() == 95)
+        servo.write(60);
+      else
+        servo.write(95);
       break;
     case "V1":
       all_speed_set = LOW_SPEED;
