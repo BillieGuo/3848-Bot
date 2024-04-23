@@ -116,10 +116,12 @@ String vision_message = "";
 //Servo motor
 #define PitchPin  4 // PG5 
 #define YawPin 13 // PB7
-#define ArmPin 46 //PL3
+#define ArmPin1 46 //PL3
+#define ArmPin2 45 //PL4
 Servo PitchServo; // 10-150
 Servo YawServo; // 0-180
-Servo ArmServo; // 0-180
+Servo ArmServo1; // 0-180
+Servo ArmServo2; // 0-180
 int angle;
 
 class DCMotor {
@@ -373,10 +375,12 @@ void setup(){
   // Servo Setup
   PitchServo.attach(PitchPin);
   YawServo.attach(YawPin);
-  ArmServo.attach(ArmPin); // 500-2500
+  ArmServo1.attach(ArmPin1); // 500-2500
+  ArmServo2.attach(ArmPin2); // 500-2500
   PitchServo.write(135);
   YawServo.write(90);
-  ArmServo.write(95);
+  ArmServo1.write(95);
+  ArmServo2.write(90);
   Gimbal_control.pitch = 135;
   Gimbal_control.yaw = 90;
 
@@ -544,10 +548,10 @@ void Vision_recv(){
     //   }
     // }
     if (vision_message.substring(1, 2).toInt() == 1){
-      ArmServo.write(60);
+      ArmServo1.write(60);
     }
     else{
-      ArmServo.write(95);
+      ArmServo1.write(95);
     }
     Serial.flush();
 
@@ -632,7 +636,7 @@ void Chassis_Motor_control(){
       Move(0.0, 0.0, 0.0);
     }
     switch (Chassis_control.target_dir){
-      case 0:
+      case 3:
         Move(0.0, 0.0, 0.5);
         if (Gimbal_control.target_flag == 3){
           Move(0.0, 0.0, 0.3);
@@ -955,24 +959,37 @@ void Vision_tracking(){
 
 void Arm_control(){
   // servo control
-  // Sweep from 0 to 180 degrees:
-  // for (angle = 0; angle <= 180; angle += 20) {
-  //   ArmServo.write(angle);
-  //   delay(500);
-  // }
-  // ArmServo.write(0);
+  // ArmServo1.write(60);
   // delay(1500);
-  // ArmServo.write(90);
+  // ArmServo1.write(95);
   // delay(1500);
-  // ArmServo.write(180);
-  // delay(1500);
-  // ArmServo.write(90);
-  // delay(1500);
-  // ArmServo.write(0);
-  ArmServo.write(60);
-  delay(1500);
-  ArmServo.write(95);
-  delay(1500);
+  if (Mode == Mode::MANUAL_CONTROL){
+    if (Chassis_control.wifi_cmd == "CAUGHT"){
+      ArmServo1.write(60); // claw open
+      delay(1000);
+      ArmServo2.write(0); // arm down
+      delay(1000);
+      ArmServo1.write(95); // claw close
+      delay(1000);
+      ArmServo2.write(90); // arm up
+    }
+  }
+  else if (Mode == Mode::CATCHING){
+    if (Vision.catch_flag == 1){
+      ArmServo1.write(60); // claw open
+      delay(1000);
+      ArmServo2.write(0); // arm down
+      delay(1000);
+      ArmServo1.write(95); // claw close
+      delay(1000);
+      ArmServo2.write(90); // arm up
+      Catched_flag = true;
+    }
+  }
+  else if (Mode == Mode::CATCHED){
+    ArmServo2.write(90); // arm up
+    ArmServo1.write(95); // claw close
+  }
 }
 
 void Scanning(){
@@ -1006,7 +1023,6 @@ void Gimbal_motor_control(){
       Gimbal_control.target = YawServo.read();
       Gimbal_control.target_flag = 2;
       YawServo.write(90);
-      delay(100);
     }
     else if (Gimbal_control.target_flag == 2 && Vision.target_flag == 1){ // second detection of tennis ball, set target direction directly using vision data
       Chassis_control.target_dir = Vision.yaw_dir;
@@ -1173,20 +1189,6 @@ void debug(){
   // Serial.println(Chassis_control.move_cnt);
   // Serial.print("move_flag: ");
   // Serial.println(Chassis_control.move_flag);
-
-  // arm servo
-  // ArmServo.write(0);
-  // delay(2000);
-  // ArmServo.write(180);
-  // delay(2000);
-
-  for (int i = 0; i < 100; i++){
-    Arm_cnt += 1;
-    if (Arm_cnt == 100){
-      Arm_flag = true;
-      Arm_cnt = 0;
-    }
-  }
 
 }
 
