@@ -5,7 +5,7 @@
 #include <Adafruit_SSD1306.h>
 #include <PID_v1.h>
 #include <SoftwareSerial.h>
-  SoftwareSerial arduinoSerial = SoftwareSerial(10, 11);//RX TX
+  SoftwareSerial arduinoSerial = SoftwareSerial(10, 11);//RX TX || PB4 PB5
 #include <Servo.h>
 
 unsigned long time;
@@ -115,10 +115,12 @@ String vision_message = "";
 //Servo motor
 #define PitchPin  4 // PG5 
 #define YawPin 13 // PB7
-#define ArmPin 46 //PL3
+#define ArmPin1 46 //PL3
+#define ArmPin2 45 //PL4
 Servo PitchServo; // 10-150
 Servo YawServo; // 0-180
-Servo ArmServo; // 0-180
+Servo ArmServo1; // 0-180
+Servo ArmServo2; // 0-180
 int angle;
 
 class DCMotor {
@@ -167,7 +169,7 @@ class Gimbal_control_t {
     int scan_cnt;
     int scan_flag;
     int target;
-    int target_flag;
+    int target_flag; // 0: no target, 1: target detected 
 
 } Gimbal_control;
 
@@ -366,23 +368,25 @@ void setup(){
   // pinMode(SONAR_TRIG, OUTPUT);
 
   //WiFi Setup
-  arduinoSerial.begin(9600);
+  arduinoSerial.begin(115200);
   arduinoSerial.flush();
 
   // Servo Setup
   PitchServo.attach(PitchPin);
   YawServo.attach(YawPin);
-  ArmServo.attach(ArmPin); // 500-2500
+  ArmServo1.attach(ArmPin1); // 500-2500
+  ArmServo2.attach(ArmPin2); // 500-2500
   PitchServo.write(135);
   YawServo.write(90);
-  ArmServo.write(95);
+  ArmServo1.write(95);
+  ArmServo2.write(95);
   Gimbal_control.pitch = 135;
   Gimbal_control.yaw = 90;
 
 
   //Mode Setup
-  Mode = Mode::NORMAL; // original mode == NORMAL
   Mode = Mode::WIFI_MANUAL; // original mode == WIFI_MANUAL
+  // Mode = Mode::NORMAL;
   delay(1000);
 }
 
@@ -509,7 +513,7 @@ void Grayscale_values(){
 
 void Esp8266_recv(){
   if (arduinoSerial.available() > 0) {
-      message = arduinoSerial.readString();
+    message = arduinoSerial.readStringUntil('\r');
     // Serial.println(message);
     Chassis_control.wifi_cmd = message;
 
@@ -522,22 +526,29 @@ void Esp8266_recv(){
       }
     }
     message = "";
+
   }
 }
 
-//protocal: abcd
+//protocal: abc
 void Vision_recv(){
   if (Serial.available() > 0) {
     vision_message = Serial.readString();
-    delay(1);
-    // Vision.target_flag = vision_message[0].toint();
-    // Vision.yaw_dir = vision_message[1].toint(); // 0123
-    // Vision.catch_flag = vision_message[2].toint();
+    Vision.target_flag = vision_message.substring(0,1).toInt();
+    Vision.yaw_dir = vision_message.substring(1,2).toInt(); // no target:0 L:1 M:2 R:3
+    Vision.catch_flag = vision_message.substring(2,3).toInt(); // no target:0 catch:1
 
   if (Gimbal_control.target_flag == 0 && Vision.target_flag == 1){
     Gimbal_control.target_flag = 1;
   }
-    Serial.println(message);
+  // Serial.println(vision_message);
+
+  if (Vision.yaw_dir == 3){
+    ArmServo1.write(60);}
+  else {
+    ArmServo1.write(95);
+  }
+    Serial.flush();
     vision_message = "";
   }
 }
@@ -577,7 +588,7 @@ void Data_update() {
 
   // respbreey pi comm / Esp8266 || Serial 
   Esp8266_recv();
-  // Vision_recv();
+  Vision_recv();
 }
 
 void Move(double x, double y, double z){ // control car movement by setting x, y, z
@@ -614,26 +625,27 @@ void Chassis_Vector_to_Mecanum_Wheel_Speed(double vx, double vy, double wz){
 void Chassis_Motor_control(){
   
   if (Mode == Mode::TENNIS_DETECTED){
-    if (Gimbal_control.target_flag == 1){
-      Move(0.0, 0.0, 0.0);
-    }
+    // if (Gimbal_control.target_flag == 1){
+    //   Move(0.0, 0.0, 0.0);
+    // }
     switch (Chassis_control.target_dir){
-      case 0:
-        Move(0.0, 0.0, 0.5);
+      case 3:
+        Move(0.0, 0.0, all_speed_set);
         if (Gimbal_control.target_flag == 3){
-          Move(0.0, 0.0, 0.3);
+          Move(0.0, 0.0, all_speed_set/2);
         }
         break;
       case 1:
-        Move(0.0, 0.0, -0.5);
+        Move(0.0, 0.0, -all_speed_set);
         if (Gimbal_control.target_flag == 3){
-          Move(0.0, 0.0, -0.3);
+          Move(0.0, 0.0, -all_speed_set/2);
         }
         break;
+      case 0:
       case 2:
-        Move(0.0, 0.5, 0.0);
-
+        Move(0.0, all_speed_set, 0.0);
         break;
+
     }
   }
 
@@ -643,8 +655,8 @@ void Chassis_Motor_control(){
   motorPID2.Compute();
   motorPID3.Compute();
   motorPID4.Compute();
-  motor1.pwm = (motor1.speed_set*1.3 + pidout1) / 2.4 * 255;
-  motor2.pwm = (motor2.speed_set*1.3 + pidout2) / 2.4 * 255;
+  motor1.pwm = (motor1.speed_set*1.4 + pidout1) / 2.4 * 255;
+  motor2.pwm = (motor2.speed_set*1.4 + pidout2) / 2.4 * 255;
   motor3.pwm = (motor3.speed_set + pidout3) / 2.4 * 255;
   motor4.pwm = (motor4.speed_set + pidout4) / 2.4 * 255;
   CLIP(pwm1, -255, 255);
@@ -660,30 +672,6 @@ void Chassis_Motor_control(){
 void Obstacle_avoidance(){
   // infrared 7.5 cm 
   // combine all infrared sensor states to one value
-  // Serial.print("Infrared_combined: ");
-  // Serial.println(Infrared_combined);
-  // Serial.print("Front_flag: ");
-  // Serial.println(Front_flag);
-  // Serial.print("Left_flag: ");
-  // Serial.println(Left_flag);
-  // Serial.print("Right_flag: ");
-  // Serial.println(Right_flag);
-  // Serial.print("Infrared_combined: ");
-  // Serial.println(Infrared_combined);
-  // Serial.print("Front_flag: ");
-  // Serial.println(Front_flag);
-  // Serial.print("Left_flag: ");
-  // Serial.println(Left_flag);
-  // Serial.print("Right_flag: ");
-  // Serial.println(Right_flag);
-  // Serial.print("retrieve_flag: ");
-  // Serial.println(retrieve_flag);
-  // Serial.print("front_cnt: ");
-  // Serial.println(front_cnt);
-  // Serial.print("left_cnt: ");
-  // Serial.println(left_cnt);
-  // Serial.print("right_cnt: ");
-  // Serial.println(right_cnt);
 
   switch (Infrared_combined) {
     case 0b0000: //no obstacle
@@ -941,16 +929,42 @@ void Vision_tracking(){
 
 void Arm_control(){
   // servo control
-
-  // ArmServo.write(60);
-  // delay(1500);
-  // ArmServo.write(95);
-  // delay(1500);
+  if (Mode == Mode::WIFI_MANUAL){
+    if (Chassis_control.wifi_cmd == "CATCH"){
+      ArmServo1.write(60); // claw open
+      delay(1000);
+      ArmServo2.write(0); // arm down
+      delay(1000);
+      ArmServo1.write(95); // claw close
+      delay(1000);
+      ArmServo2.write(95); // arm up
+    }
+  }
+  else if (Mode == Mode::CATCHING){
+    if (Vision.catch_flag == 1){
+      ArmServo1.write(60); // claw open
+      delay(1000);
+      ArmServo2.write(0); // arm down
+      delay(1000);
+      ArmServo1.write(95); // claw close
+      delay(1000);
+      ArmServo2.write(95); // arm up
+      Catched_flag = true;
+    }
+  }
+  else {
+    ArmServo1.write(95);
+    ArmServo2.write(95);
+    if (Mode != Mode::CATCHED){
+      Catched_flag = false;
+    }
+  }
+  
 }
 
 void Scanning(){
   if (Gimbal_control.cnt % 400 == 0){
-    Gimbal_control.yaw += 45;
+    // Gimbal_control.yaw += 45;
     Gimbal_control.yaw %= 180;
     YawServo.write(Gimbal_control.yaw);
     Gimbal_control.scan_cnt += 1;
@@ -979,7 +993,6 @@ void Gimbal_motor_control(){
       Gimbal_control.target = YawServo.read();
       Gimbal_control.target_flag = 2;
       YawServo.write(90);
-      delay(100);
     }
     else if (Gimbal_control.target_flag == 2 && Vision.target_flag == 1){ // second detection of tennis ball, set target direction directly using vision data
       Chassis_control.target_dir = Vision.yaw_dir;
@@ -989,6 +1002,7 @@ void Gimbal_motor_control(){
     }
     else if (Gimbal_control.target_flag == 3){
       Chassis_control.target_dir = Vision.yaw_dir;
+      YawServo.write(90);
       return;
     }
     
@@ -1001,6 +1015,8 @@ void Gimbal_motor_control(){
     else {
       Chassis_control.target_dir = 2;
     }
+    //debug
+    Chassis_control.target_dir = Vision.yaw_dir;
   }
   
 }
@@ -1009,12 +1025,13 @@ void Mode_switch(){
   // execute functions under different modes
   switch (Mode){
     case Mode::NORMAL:
-      if (Obstacle_flag){
-        Mode = Mode::OBSTACLE_DETECTED;
-        last_time = millis();
-        break;
-      }
-      else if (Tennis_flag){
+      // if (Obstacle_flag){
+      //   Mode = Mode::OBSTACLE_DETECTED;
+      //   last_time = millis();
+      //   break;
+      // }
+      // else 
+      if (Vision.target_flag != 0){
         Mode = Mode::TENNIS_DETECTED;
       }
       Line_tracking();
@@ -1034,8 +1051,8 @@ void Mode_switch(){
       Obstacle_avoidance();
       break;
     case Mode::TENNIS_DETECTED:
-      if (!Tennis_flag && !Catching_flag){
-        Mode = Mode::OBSTACLE_DETECTED;
+      if (Vision.target_flag == 0 && Vision.catch_flag == 0){
+        // Mode = Mode::OBSTACLE_DETECTED;
       }
       else if (Catching_flag){
         Mode = Mode::CATCHING;
@@ -1147,12 +1164,11 @@ void debug(){
   // Serial.print("move_flag: ");
   // Serial.println(Chassis_control.move_flag);
 
-  // arm servo
-  // ArmServo.write(0);
+  //servo
+  // ArmServo1.write(30);
   // delay(2000);
-  // ArmServo.write(180);
+  // ArmServo1.write(120);
   // delay(2000);
-
 }
 
 void Wifi_control(){
@@ -1180,10 +1196,10 @@ void Wifi_control(){
     }
     // SERVO ARM
     else if (Chassis_control.wifi_cmd == "CATCH"){
-      if (ArmServo.read() == 95)
-        ArmServo.write(60);
+      if (ArmServo1.read() == 95)
+        ArmServo1.write(60);
       else
-        ArmServo.write(95);
+        ArmServo1.write(95);
     }
     // SPEED
     else if (Chassis_control.wifi_cmd == "V1"){
@@ -1234,12 +1250,8 @@ void loop()
   }
   else{
     Mode_switch();
-    // Obstacle_avoidance();
-    // Line_tracking();
-    // Vision_tracking();
-    // Gimbal_motor_control();
     Chassis_Motor_control();
-    // Arm_control();
+    Arm_control();
   }
   //debug
   debug();
