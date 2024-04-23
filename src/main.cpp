@@ -35,7 +35,7 @@ int MIN_VALUE = 300;
 
 // enum class for states with different function executions
 enum class Mode {
-  MANUAL, //Wifi communication 
+  MANUAL_CONTROL, //Wifi communication 
   NORMAL, // Obstacle avoidance + Line tracking + Tennis ball detection + Wifi communication
   OBSTACLE_DETECTED, // -line tracking, when obstacle detected
   TENNIS_DETECTED, // -obstacle avoidance, when tennis ball detected but not catched
@@ -87,6 +87,8 @@ int rotate_cnt = 0;
 bool Tennis_flag = false;
 bool Catching_flag = false;
 bool Catched_flag = false;
+bool Arm_flag = false;
+int Arm_cnt = 0;
 
 // back to line
 int last_time = 0, shift_stop_time = 0;
@@ -374,14 +376,14 @@ void setup(){
   ArmServo.attach(ArmPin); // 500-2500
   PitchServo.write(135);
   YawServo.write(90);
-  // ArmServo.write(90);
+  ArmServo.write(95);
   Gimbal_control.pitch = 135;
   Gimbal_control.yaw = 90;
 
 
   //Mode Setup
   Mode = Mode::NORMAL; // original mode == NORMAL
-  // Mode = Mode::MANUAL; // original mode == MANUAL
+  // Mode = Mode::MANUAL_CONTROL; // original mode == MANUAL_CONTROL
   delay(1000);
 }
 
@@ -512,8 +514,8 @@ void Esp8266_recv(){
     // Serial.println(message);
     Chassis_control.wifi_cmd = message;
     if (Chassis_control.wifi_cmd == "AUTO"){
-      if (Mode != Mode::MANUAL){
-        Mode = Mode::MANUAL;
+      if (Mode != Mode::MANUAL_CONTROL){
+        Mode = Mode::MANUAL_CONTROL;
       }
       else {
         Mode = Mode::NORMAL;
@@ -525,17 +527,31 @@ void Esp8266_recv(){
 
 //protocal: abcd
 void Vision_recv(){
-  if (Serial.available() > 0) {
+  if (Serial.available() >= 3) {
     vision_message = Serial.readString();
-    delay(1);
-    // Vision.target_flag = vision_message[0].toint();
-    // Vision.yaw_dir = vision_message[1].toint(); // 0123
-    // Vision.catch_flag = vision_message[2].toint();
 
-  if (Gimbal_control.target_flag == 0 && Vision.target_flag == 1){
-    Gimbal_control.target_flag = 1;
-  }
-    Serial.println(message);
+    // Vision.target_flag = vision_message.substring(0, 1).toInt();
+    // Vision.yaw_dir = vision_message.substring(1, 2).toInt();
+    // Vision.catch_flag = vision_message.substring(2, 3).toInt();
+
+    // if (Gimbal_control.target_flag == 0 && Vision.target_flag == 1){
+    //   Gimbal_control.target_flag = 1;
+    //   if (Vision.yaw_dir == 1){
+    //     ArmServo.write(60);
+    //   }
+    //   else{
+    //     ArmServo.write(95);
+    //   }
+    // }
+    if (vision_message.substring(1, 2).toInt() == 1){
+      ArmServo.write(60);
+    }
+    else{
+      ArmServo.write(95);
+    }
+    Serial.flush();
+
+    // Serial.println(message); 
     vision_message = "";
   }
 }
@@ -1164,118 +1180,75 @@ void debug(){
   // ArmServo.write(180);
   // delay(2000);
 
+  for (int i = 0; i < 100; i++){
+    Arm_cnt += 1;
+    if (Arm_cnt == 100){
+      Arm_flag = true;
+      Arm_cnt = 0;
+    }
+  }
+
 }
 
-void Wifi_control(){
-  switch (Chassis_control.wifi_cmd)
-  {
-    case "F":
-      Move(0.0, all_speed_set, 0.0);
-      break;
-    case "B":
-      Move(0.0, -all_speed_set, 0.0);
-      break;
-    case "L":
-      Move(-all_speed_set, 0.0, 0.0);
-      break;
-    case "R":
-      Move(all_speed_set, 0.0, 0.0);
-      break;
-    case "CCW":
-      Move(0.0, 0.0, -all_speed_set);
-      break;
-    case "CW":
-      Move(0.0, 0.0, all_speed_set);
-      break;
-    case "STOP":
-      Move(0.0, 0.0, 0.0);
-      break;
-    case "CATCH":
-    //servo control
-    // if (servo.read() == 0)
-    //   servo.write(180);
-    // else
-    //   servo.write(0);
-      break;
-    case "V1":
-      all_speed_set = LOW_SPEED;
-      break;
-    case "V2":
-      all_speed_set = MEDIUM_SPEED;
-      break;
-    case "V3":
-      all_speed_set = HIGH_SPEED;
-      break;
-    // GIMBAL
-    default: 
-      break;
-  }
-}
-
-void Wifi_control(){
-  switch (Chassis_control.wifi_cmd)
-  {
-    case "F":
-      Move(0.0, all_speed_set, 0.0);
-      break;
-    case "B":
-      Move(0.0, -all_speed_set, 0.0);
-      break;
-    case "L":
-      Move(-all_speed_set, 0.0, 0.0);
-      break;
-    case "R":
-      Move(all_speed_set, 0.0, 0.0);
-      break;
-    case "CCW":
-      Move(0.0, 0.0, -all_speed_set);
-      break;
-    case "CW":
-      Move(0.0, 0.0, all_speed_set);
-      break;
-    case "STOP":
-      Move(0.0, 0.0, 0.0);
-      break;
-    case "CATCH":
-    //servo control
-    // if (servo.read() == 0)
-    //   servo.write(180);
-    // else
-    //   servo.write(0);
-      break;
-    case "V1":
-      all_speed_set = LOW_SPEED;
-      break;
-    case "V2":
-      all_speed_set = MEDIUM_SPEED;
-      break;
-    case "V3":
-      all_speed_set = HIGH_SPEED;
-      break;
-    // GIMBAL
-    default: 
-      break;
-  }
-}
+// void Wifi_control(){
+//   switch (Chassis_control.wifi_cmd)
+//   {
+//     case "F":
+//       Move(0.0, all_speed_set, 0.0);
+//       break;
+//     case "B":
+//       Move(0.0, -all_speed_set, 0.0);
+//       break;
+//     case "L":
+//       Move(-all_speed_set, 0.0, 0.0);
+//       break;
+//     case "R":
+//       Move(all_speed_set, 0.0, 0.0);
+//       break;
+//     case "CCW":
+//       Move(0.0, 0.0, -all_speed_set);
+//       break;
+//     case "CW":
+//       Move(0.0, 0.0, all_speed_set);
+//       break;
+//     case "STOP":
+//       Move(0.0, 0.0, 0.0);
+//       break;
+//     case "CATCH":
+//     //servo control
+//     // if (servo.read() == 0)
+//     //   servo.write(180);
+//     // else
+//     //   servo.write(0);
+//       break;
+//     case "V1":
+//       all_speed_set = LOW_SPEED;
+//       break;
+//     case "V2":
+//       all_speed_set = MEDIUM_SPEED;
+//       break;
+//     case "V3":
+//       all_speed_set = HIGH_SPEED;
+//       break;
+//     // GIMBAL
+//     default: 
+//       break;
+//   }
+// }
 
 void loop()
 {
   time = millis();
   Data_update();
-  if (Mode == Mode::MANUAL){
-    Wifi_control();
-    Chassis_Motor_control();
-    Arm_control();
-  }
-  else{
-    Mode_switch();
-    // Obstacle_avoidance();
-    // Line_tracking();
-    // Vision_tracking();
-    // Gimbal_motor_control();
-    Chassis_Motor_control();
-    // Arm_control();
-  }
+  // Mode_switch();
+  // Obstacle_avoidance();
+  // Line_tracking();
+	// Vision_tracking();
+  // Gimbal_motor_control();
+  Chassis_Motor_control();
+	// Arm_control();
+  Vision_recv();
+
   //debug
   debug();
 
