@@ -389,6 +389,8 @@ void setup(){
   YawServo.write(90);
   ArmServo1.write(95);
   ArmServo2.write(180);
+  // ArmServo1.write(60);
+  // ArmServo2.write(55);
   Gimbal_control.pitch = 135;
   Gimbal_control.yaw = 90;
 
@@ -540,67 +542,6 @@ void Esp8266_recv(){
   }
 }
 
-//protocal: abc
-void Vision_recv(){
-  if (Serial.available() >= 3) {
-    vision_message = Serial.readString();
-    Vision.target_flag = vision_message.substring(0,1).toInt();
-    Vision.yaw_dir = vision_message.substring(1,2).toInt(); // no target:0 L:1 M:2 R:3
-    Vision.catch_flag = vision_message.substring(2,3).toInt(); // no target:0 catch:1
-
-  if (Gimbal_control.target_flag == 0 && Vision.target_flag == 1){
-    Gimbal_control.target_flag = 1;
-  }
-  // Serial.println(vision_message);
-
-  if (Vision.yaw_dir == 3){
-    ArmServo1.write(60);}
-  else {
-    ArmServo1.write(95);
-  }
-    Serial.flush();
-    vision_message = "";
-  }
-}
-
-void Data_update() {
-  // Motor
-  eps1 = motor1.ecd - motor1.last_ecd;
-  eps2 = motor2.ecd - motor2.last_ecd;
-  eps3 = motor3.ecd - motor3.last_ecd;
-  eps4 = motor4.ecd - motor4.last_ecd;
-  motor1.last_ecd = motor1.ecd;
-  motor2.last_ecd = motor2.ecd;
-  motor3.last_ecd = motor3.ecd;
-  motor4.last_ecd = motor4.ecd;
-  // eps1 = eps1 * 1000 / 660; // encoder count per second ???
-  motor1.speed = eps1 * Wheel_Radius / EPRA * 100;
-  motor2.speed = eps2 * Wheel_Radius / EPRB * 100;
-  motor3.speed = eps3 * Wheel_Radius / EPRC * 100; 
-  motor4.speed = eps4 * Wheel_Radius / EPRD * 100;
-  // motor1.pwm = motor1.speed / 2.4 * 255;
-  // motor2.pwm = motor2.speed / 2.4 * 255;
-  // motor3.pwm = motor3.speed / 2.4 * 255;
-  // motor4.pwm = motor4.speed / 2.4 * 255;
-
-  // infrared
-  Infrared_states();
-
-  // gray scale detect
-  Grayscale_values();
-
-  // vision detect
-  
-  // IMU
-
-  // ultrasonic 
-  // Get_front_distance();
-
-  // respbreey pi comm / Esp8266 || Serial 
-  Esp8266_recv();
-  Vision_recv();
-}
-
 void Move(double x, double y, double z){ // control car movement by setting x, y, z
   Chassis_control.vx = x;
   Chassis_control.vy = y;
@@ -630,6 +571,7 @@ void Chassis_Vector_to_Mecanum_Wheel_Speed(double vx, double vy, double wz){
   motor3.pwm_set = wheel_speed[2] / 2.4 * 255;
   motor4.pwm_set = wheel_speed[3] / 2.4 * 255;
 }
+
 
 // speed of motor 0-2.4 from pwm 0-255
 void Chassis_Motor_control(){
@@ -681,6 +623,127 @@ void Chassis_Motor_control(){
   motor3.setMotor(motor3.pwm);
   motor4.setMotor(motor4.pwm);
 }
+
+
+int vision_cnt=0;
+int stop_cnt=0;
+//protocal: abc
+void Vision_recv(){
+  if (Serial.available() >= 3) {
+    vision_message = Serial.readString();
+    Vision.target_flag = vision_message.substring(0,1).toInt();
+    Vision.yaw_dir = vision_message.substring(1,2).toInt(); // no target:0 L:1 M:2 R:3
+    Vision.catch_flag = vision_message.substring(2,3).toInt(); // no target:0 catch:1
+
+    if (Gimbal_control.target_flag == 0 && Vision.target_flag == 1){
+      Gimbal_control.target_flag = 1;
+    }
+    // Serial.println(vision_message);
+
+    if (Vision.target_flag == 1){
+      ArmServo1.write(60);
+    }
+    if (Vision.yaw_dir == 2){
+      Move(0.0, 0.2, 0.0);
+    }
+    else if (Vision.yaw_dir == 1){
+      Move(0.0, 0.0, -0.2);
+    }
+    else if (Vision.yaw_dir == 3){
+      Move(0.0, 0.0, 0.2);
+    }
+    vision_cnt += 1;
+    if (vision_cnt >= 50){
+      Move(0.0, 0.0, 0.0);
+      if (vision_cnt >= 1000){
+        vision_cnt = 0;
+      }
+    }
+    if (Vision.catch_flag == 1){
+      if (stop_cnt < 2000){
+        Move(0.0, 0.0, 0.0);
+        Chassis_Motor_control();
+        stop_cnt += 1;
+      }
+      else{
+        ArmServo2.write(145); // arm down a bit
+        delay(1000);
+        ArmServo2.write(100); // tilt arm down a bit, middle stage
+        delay(1000);
+        ArmServo2.write(55); // arm down
+        delay(1000);
+        ArmServo1.write(95); // claw close
+        delay(1000);
+        ArmServo2.write(100); // arm middle
+        delay(1000);
+        ArmServo2.write(145); // arm up
+        delay(1000);
+        ArmServo2.write(180);
+        delay(1000);
+        ArmServo1.write(60); // claw open, put down tennis ball
+        delay(1000);
+        ArmServo1.write(95); // claw close
+        stop_cnt = 0;
+      }
+
+    }
+    
+    
+    // if (Vision.catch_flag == 1){
+    //   ArmServo1.write(95);
+    // }
+    // else {
+    //   ArmServo1.write(60);
+    // }
+  
+    Serial.flush();
+    vision_message = "";
+  }
+}
+
+void Data_update() {
+  // Motor
+  eps1 = motor1.ecd - motor1.last_ecd;
+  eps2 = motor2.ecd - motor2.last_ecd;
+  eps3 = motor3.ecd - motor3.last_ecd;
+  eps4 = motor4.ecd - motor4.last_ecd;
+  motor1.last_ecd = motor1.ecd;
+  motor2.last_ecd = motor2.ecd;
+  motor3.last_ecd = motor3.ecd;
+  motor4.last_ecd = motor4.ecd;
+  // eps1 = eps1 * 1000 / 660; // encoder count per second ???
+  motor1.speed = eps1 * Wheel_Radius / EPRA * 100;
+  motor2.speed = eps2 * Wheel_Radius / EPRB * 100;
+  motor3.speed = eps3 * Wheel_Radius / EPRC * 100; 
+  motor4.speed = eps4 * Wheel_Radius / EPRD * 100;
+  // motor1.pwm = motor1.speed / 2.4 * 255;
+  // motor2.pwm = motor2.speed / 2.4 * 255;
+  // motor3.pwm = motor3.speed / 2.4 * 255;
+  // motor4.pwm = motor4.speed / 2.4 * 255;
+
+  // infrared
+  Infrared_states();
+
+  // gray scale detect
+  Grayscale_values();
+
+  // vision detect
+  
+  // IMU
+
+  // ultrasonic 
+  // Get_front_distance();
+
+  // respbreey pi comm / Esp8266 || Serial 
+  Esp8266_recv();
+  Vision_recv();
+}
+
+
+
+
+
+
 
 void Obstacle_avoidance(){
   // infrared 7.5 cm 
@@ -898,13 +961,11 @@ void Line_tracking(){
       if (Rotate_flag){
         Move(0.0, 0.0, -all_speed_set); // rotate acw 90 degree
       }
-      // Rotate_ACW_90();
       break;
     case 0b01111: // middle three + right most detect white, court edge (right corner)
       if (Rotate_flag){
         Move(0.0, 0.0, all_speed_set); // rotate cw 90 degree
       }
-    //   Rotate_CW_90();
       break;
     case 0b11111: // all detect white, court edge (crossroad)
       // Serial.println("Crossroad");
@@ -912,13 +973,11 @@ void Line_tracking(){
         if (Rotate_flag){
           Move(0.0, 0.0, all_speed_set);
         }
-        // Rotate_CW_90();
       }
       else {
         if (Rotate_flag){
           Move(0.0, 0.0, -all_speed_set);
         }
-        // Rotate_ACW_90();
       }
     default:
       Move(0.0, all_speed_set, 0.0); // go straight
@@ -1083,7 +1142,6 @@ void Mode_switch(){
         Mode = Mode::TENNIS_DETECTED;
       }
       Line_tracking();
-      Vision_tracking();
       Gimbal_motor_control();
       break;
     case Mode::OBSTACLE_DETECTED:
@@ -1217,24 +1275,24 @@ void debug(){
   // delay(2000);
   // ArmServo2.write(55);
   // delay(2000);
-  ArmServo2.write(145);
-  delay(1000);
-  ArmServo1.write(60); // claw open
-  delay(1000);
-  ArmServo2.write(100); // tilt arm down a bit, middle stage
-  delay(1000);
-  ArmServo2.write(55); // arm down
-  delay(1000);
-  ArmServo1.write(95); // claw close
-  delay(1000);
-  ArmServo2.write(100); // arm middle
-  delay(1000);
-  ArmServo2.write(145); // arm up
-  delay(1000);
-  ArmServo2.write(180);
-  delay(1000);
-  ArmServo1.write(60); // claw open, put down tennis ball
-  delay(1000);
+  // ArmServo2.write(145);
+  // delay(1000);
+  // ArmServo1.write(60); // claw open
+  // delay(1000);
+  // ArmServo2.write(100); // tilt arm down a bit, middle stage
+  // delay(1000);
+  // ArmServo2.write(55); // arm down
+  // delay(1000);
+  // ArmServo1.write(95); // claw close
+  // delay(1000);
+  // ArmServo2.write(100); // arm middle
+  // delay(1000);
+  // ArmServo2.write(145); // arm up
+  // delay(1000);
+  // ArmServo2.write(180);
+  // delay(1000);
+  // ArmServo1.write(60); // claw open, put down tennis ball
+  // delay(1000);
 }
 
 void Wifi_control(){
@@ -1359,17 +1417,17 @@ void loop()
   time = millis();
   Data_update();
 
-  if (Mode == Mode::WIFI_MANUAL){
-    Wifi_control();
-    Chassis_Motor_control();
-    // Arm_control();
-  }
-  else{
-    Mode_switch();
-    Chassis_Motor_control();
-    Arm_control();
-  }
-
+  // if (Mode == Mode::WIFI_MANUAL){
+  //   Wifi_control();
+  //   Chassis_Motor_control();
+  //   // Arm_control();
+  // }
+  // else{
+  //   Mode_switch();
+  //   Chassis_Motor_control();
+  //   Arm_control();
+  // }
+  Chassis_Motor_control();
   //debug
   debug();
 
