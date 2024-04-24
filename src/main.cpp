@@ -106,7 +106,7 @@ float last_avoid_move_z = 0.0;
 
 
 #define Wheel_Radius 0.04 //m
-#define MOTOR_KP 0.4
+#define MOTOR_KP 0.5
 #define MOTOR_KI 0.0
 #define MOTOR_KD 0.0
 #define CLIP(x, min, max) if (x < min) x = min; if (x > max) x = max;
@@ -668,8 +668,8 @@ void Chassis_Motor_control(){
   motorPID2.Compute();
   motorPID3.Compute();
   motorPID4.Compute();
-  motor1.pwm = (motor1.speed_set*1.4 + pidout1) / 2.4 * 255;
-  motor2.pwm = (motor2.speed_set*1.4 + pidout2) / 2.4 * 255;
+  motor1.pwm = (motor1.speed_set*1.5 + pidout1) / 2.4 * 255;
+  motor2.pwm = (motor2.speed_set*1.5 + pidout2) / 2.4 * 255;
   motor3.pwm = (motor3.speed_set + pidout3) / 2.4 * 255;
   motor4.pwm = (motor4.speed_set + pidout4) / 2.4 * 255;
   CLIP(pwm1, -255, 255);
