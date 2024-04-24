@@ -95,6 +95,8 @@ int rotate_cnt = 0;
 bool Tennis_flag = false;
 bool Catching_flag = false;
 bool Catched_flag = false;
+bool Arm_flag = false;
+int Arm_cnt = 0;
 
 // back to line
 int last_time = 0, shift_stop_time = 0;
@@ -386,13 +388,13 @@ void setup(){
   PitchServo.write(135);
   YawServo.write(90);
   ArmServo1.write(95);
-  ArmServo2.write(95);
+  ArmServo2.write(180);
   Gimbal_control.pitch = 135;
   Gimbal_control.yaw = 90;
 
 
   //Mode Setup
-  Mode = Mode::WIFI_MANUAL; // original mode == WIFI_MANUAL
+  // Mode = Mode::WIFI_MANUAL; // original mode == WIFI_MANUAL
   // Mode = Mode::NORMAL;
   WifiMode = WIFIMODE::NONE;
   delay(1000);
@@ -540,7 +542,7 @@ void Esp8266_recv(){
 
 //protocal: abc
 void Vision_recv(){
-  if (Serial.available() > 0) {
+  if (Serial.available() >= 3) {
     vision_message = Serial.readString();
     Vision.target_flag = vision_message.substring(0,1).toInt();
     Vision.yaw_dir = vision_message.substring(1,2).toInt(); // no target:0 L:1 M:2 R:3
@@ -938,30 +940,66 @@ void Arm_control(){
   // servo control
   if (Mode == Mode::WIFI_MANUAL){
     if (Chassis_control.wifi_cmd == "CATCH"){
+      ArmServo2.write(145); // arm down a bit
+      delay(1000);
       ArmServo1.write(60); // claw open
       delay(1000);
-      ArmServo2.write(0); // arm down
+      ArmServo2.write(100); // tilt arm down a bit, middle stage
+      delay(1000);
+      ArmServo2.write(55); // arm down
       delay(1000);
       ArmServo1.write(95); // claw close
       delay(1000);
-      ArmServo2.write(95); // arm up
+      ArmServo2.write(100); // arm middle
+      delay(1000);
+      ArmServo2.write(145); // arm up
+      delay(1000);
+      ArmServo2.write(180);
+      delay(1000);
+      ArmServo1.write(60); // claw open, put down tennis ball
+      delay(1000);
+      // ArmServo1.write(60); // claw open
+      // delay(1000);
+      // ArmServo2.write(55); // arm down
+      // delay(1000);
+      // ArmServo1.write(95); // claw close
+      // delay(1000);
+      // ArmServo2.write(145); // arm up
     }
   }
   else if (Mode == Mode::CATCHING){
     if (Vision.catch_flag == 1){
+      ArmServo2.write(145); // arm down a bit
+      delay(1000);
       ArmServo1.write(60); // claw open
       delay(1000);
-      ArmServo2.write(0); // arm down
+      ArmServo2.write(100); // tilt arm down a bit, middle stage
+      delay(1000);
+      ArmServo2.write(55); // arm down
       delay(1000);
       ArmServo1.write(95); // claw close
       delay(1000);
-      ArmServo2.write(95); // arm up
+      ArmServo2.write(100); // arm middle
+      delay(1000);
+      ArmServo2.write(145); // arm up
+      delay(1000);
+      ArmServo2.write(180);
+      delay(1000);
+      ArmServo1.write(60); // claw open, put down tennis ball
+      delay(1000);
+      // ArmServo1.write(60); // claw open
+      // delay(1000);
+      // ArmServo2.write(55); // arm down
+      // delay(1000);
+      // ArmServo1.write(95); // claw close
+      // delay(1000);
+      // ArmServo2.write(145); // arm up
       Catched_flag = true;
     }
   }
   else {
     ArmServo1.write(95);
-    ArmServo2.write(95);
+    ArmServo2.write(180);
     if (Mode != Mode::CATCHED){
       Catched_flag = false;
     }
@@ -1173,10 +1211,30 @@ void debug(){
   // Serial.println(Chassis_control.move_flag);
 
   //servo
-  // ArmServo1.write(30);
+  // ArmServo2.write(145);
   // delay(2000);
-  // ArmServo1.write(120);
+  // ArmServo2.write(180);
   // delay(2000);
+  // ArmServo2.write(55);
+  // delay(2000);
+  ArmServo2.write(145);
+  delay(1000);
+  ArmServo1.write(60); // claw open
+  delay(1000);
+  ArmServo2.write(100); // tilt arm down a bit, middle stage
+  delay(1000);
+  ArmServo2.write(55); // arm down
+  delay(1000);
+  ArmServo1.write(95); // claw close
+  delay(1000);
+  ArmServo2.write(100); // arm middle
+  delay(1000);
+  ArmServo2.write(145); // arm up
+  delay(1000);
+  ArmServo2.write(180);
+  delay(1000);
+  ArmServo1.write(60); // claw open, put down tennis ball
+  delay(1000);
 }
 
 void Wifi_control(){
@@ -1300,6 +1358,7 @@ void loop()
 {
   time = millis();
   Data_update();
+
   if (Mode == Mode::WIFI_MANUAL){
     Wifi_control();
     Chassis_Motor_control();
@@ -1310,6 +1369,7 @@ void loop()
     Chassis_Motor_control();
     Arm_control();
   }
+
   //debug
   debug();
 
