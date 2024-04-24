@@ -76,8 +76,8 @@ int Grayscale_combined = 0b00000;
 
 
 //ultrasonic sensors
-// #define SONAR_TRIG 29 //PA7
-// #define SONAR_ECHO 28 //PA6
+#define SONAR_TRIG 48 //PA7
+#define SONAR_ECHO 47 //PA6
 double Sonar_distance_in_cm;
 int done, start_time;
 
@@ -106,7 +106,7 @@ float last_avoid_move_z = 0.0;
 
 
 #define Wheel_Radius 0.04 //m
-#define MOTOR_KP 0.5
+#define MOTOR_KP 0.6
 #define MOTOR_KI 0.0
 #define MOTOR_KD 0.0
 #define CLIP(x, min, max) if (x < min) x = min; if (x > max) x = max;
@@ -286,7 +286,6 @@ void DCMotor::setDirection(int dir) {
         digitalWrite(dirBPin, HIGH);
     }
     else {
-        Serial.println("Invalid direction");
         digitalWrite(dirAPin, LOW);
         digitalWrite(dirBPin, LOW);
     }
@@ -396,7 +395,7 @@ void setup(){
 
 
   //Mode Setup
-  // Mode = Mode::WIFI_MANUAL; // original mode == WIFI_MANUAL
+  Mode = Mode::WIFI_MANUAL; // original mode == WIFI_MANUAL
   // Mode = Mode::NORMAL;
   WifiMode = WIFIMODE::NONE;
   delay(1000);
@@ -416,7 +415,7 @@ void setup(){
 //   if (millis() - start_time > 10){
 //     digitalWrite(SONAR_TRIG, LOW);
 //     Sonar_duration = pulseIn(SONAR_ECHO, HIGH);
-//     Sonar_distance_in_cm = (Sonar_duration/0.4) / 29.1;
+//     Sonar_distance_in_cm = (Sonar_duration/2.0) / 29.1;
 //     done = true;
 //   }
 // }
@@ -466,7 +465,7 @@ void Infrared_states(){
   }
   if ((Infrared_combined & 0b0001) == 0b0000){ // front two sensors detect no obstacle
     front_cnt += 1;
-    if (front_cnt >= 400){
+    if (front_cnt >= 200){
       Front_flag = false;
     }
   }
@@ -494,19 +493,19 @@ void Grayscale_values(){
 
   Grayscale_combined = 0b00000;
 
-  if (Grayscale_right > 880) { // right most grayscale sensor detect white line, lowest digit = 1
+  if (Grayscale_right > 810) { // right most grayscale sensor detect white line, lowest digit = 1
     Grayscale_combined = Grayscale_combined | 0b00001;
   }
-  if (Grayscale_middle_right > 900) { // right second grayscale sensor detect white line, second lowest digit = 1
+  if (Grayscale_middle_right > 830) { // right second grayscale sensor detect white line, second lowest digit = 1
     Grayscale_combined = Grayscale_combined | 0b00010;
   }
-  if (Grayscale_middle > 910) { // middle grayscale sensor detect white line, third lowest digit = 1
+  if (Grayscale_middle > 830) { // middle grayscale sensor detect white line, third lowest digit = 1
     Grayscale_combined = Grayscale_combined | 0b00100;
   }
-  if (Grayscale_middle_left > 900) { // left second grayscale sensor detect white line, fourth lowest digit = 1
+  if (Grayscale_middle_left > 820) { // left second grayscale sensor detect white line, fourth lowest digit = 1
     Grayscale_combined = Grayscale_combined | 0b01000;
   }
-  if (Grayscale_left > 900) { // left most grayscale sensor detect white line, highest digit = 1
+  if (Grayscale_left > 820) { // left most grayscale sensor detect white line, highest digit = 1
     Grayscale_combined = Grayscale_combined | 0b10000;
   }
 
@@ -526,9 +525,7 @@ void Grayscale_values(){
 void Esp8266_recv(){
   if (arduinoSerial.available() > 0) {
     message = arduinoSerial.readStringUntil('\r');
-    // Serial.println(message);
     Chassis_control.wifi_cmd = message;
-
     if (Chassis_control.wifi_cmd == "AUTO"){
       if (Mode != Mode::WIFI_MANUAL){
         Mode = Mode::WIFI_MANUAL;
@@ -537,6 +534,7 @@ void Esp8266_recv(){
         Mode = Mode::NORMAL;
       }
     }
+    // Serial.println(Chassis_control.wifi_cmd);
     message = "";
 
   }
@@ -612,7 +610,7 @@ void Chassis_Motor_control(){
   motorPID4.Compute();
   motor1.pwm = (motor1.speed_set*1.5 + pidout1) / 2.4 * 255;
   motor2.pwm = (motor2.speed_set*1.5 + pidout2) / 2.4 * 255;
-  motor3.pwm = (motor3.speed_set + pidout3) / 2.4 * 255;
+  motor3.pwm = (motor3.speed_set*1.08+ pidout3) / 2.4 * 255;
   motor4.pwm = (motor4.speed_set + pidout4) / 2.4 * 255;
   CLIP(pwm1, -255, 255);
   CLIP(pwm2, -255, 255);
@@ -624,41 +622,34 @@ void Chassis_Motor_control(){
   motor4.setMotor(motor4.pwm);
 }
 
-
 int vision_cnt=0;
 int stop_cnt=0;
-//protocal: abc
-void Vision_recv(){
-  if (Serial.available() >= 3) {
-    vision_message = Serial.readString();
-    Vision.target_flag = vision_message.substring(0,1).toInt();
-    Vision.yaw_dir = vision_message.substring(1,2).toInt(); // no target:0 L:1 M:2 R:3
-    Vision.catch_flag = vision_message.substring(2,3).toInt(); // no target:0 catch:1
-
-    if (Gimbal_control.target_flag == 0 && Vision.target_flag == 1){
-      Gimbal_control.target_flag = 1;
+void Vision_tracking(){
+    if (Infrared_front_left && Infrared_front_right){
+      Move(0.0, -0.2, 0.0);
     }
-    // Serial.println(vision_message);
-
-    if (Vision.target_flag == 1){
-      ArmServo1.write(60);
-    }
-    if (Vision.yaw_dir == 2){
-      Move(0.0, 0.2, 0.0);
-    }
-    else if (Vision.yaw_dir == 1){
+    else if (!Infrared_front_left){
       Move(0.0, 0.0, -0.2);
     }
-    else if (Vision.yaw_dir == 3){
+    else if (!Infrared_front_right){
       Move(0.0, 0.0, 0.2);
     }
+    else{
+      Move(0.0, 0.0, 0.0);
+    }
+    if (Sonar_distance_in_cm < 6 && Sonar_distance_in_cm > 4){
+      Move(0.0, 0.0, 0.0);
+      Vision.catch_flag = 1;
+    }
+
     vision_cnt += 1;
     if (vision_cnt >= 50){
       Move(0.0, 0.0, 0.0);
       if (vision_cnt >= 1000){
         vision_cnt = 0;
       }
-    }
+    }  
+
     if (Vision.catch_flag == 1){
       if (stop_cnt < 2000){
         Move(0.0, 0.0, 0.0);
@@ -684,8 +675,26 @@ void Vision_recv(){
         delay(1000);
         ArmServo1.write(95); // claw close
         stop_cnt = 0;
+        Mode = Mode::NORMAL;
       }
+  }
+}
 
+//protocal: abc
+void Vision_recv(){
+  if (Serial.available() >= 3) {
+    vision_message = Serial.readString();
+    Vision.target_flag = vision_message.substring(0,1).toInt();
+    Vision.yaw_dir = vision_message.substring(1,2).toInt(); // no target:0 L:1 M:2 R:3
+    Vision.catch_flag = vision_message.substring(2,3).toInt(); // no target:0 catch:1
+
+    if (Gimbal_control.target_flag == 0 && Vision.target_flag == 1){
+      Gimbal_control.target_flag = 1;
+    }
+
+    if (Vision.target_flag == 1){
+      ArmServo1.write(60);
+      Mode = Mode::TENNIS_DETECTED;
     }
     
     
@@ -738,12 +747,6 @@ void Data_update() {
   Esp8266_recv();
   Vision_recv();
 }
-
-
-
-
-
-
 
 void Obstacle_avoidance(){
   // infrared 7.5 cm 
@@ -968,7 +971,6 @@ void Line_tracking(){
       }
       break;
     case 0b11111: // all detect white, court edge (crossroad)
-      // Serial.println("Crossroad");
       if (Grayscale_left < Grayscale_right + 30){
         if (Rotate_flag){
           Move(0.0, 0.0, all_speed_set);
@@ -1132,13 +1134,12 @@ void Mode_switch(){
   // execute functions under different modes
   switch (Mode){
     case Mode::NORMAL:
-      // if (Obstacle_flag){
-      //   Mode = Mode::OBSTACLE_DETECTED;
-      //   last_time = millis();
-      //   break;
-      // }
-      // else 
-      if (Vision.target_flag != 0){
+      if (Obstacle_flag){
+        Mode = Mode::OBSTACLE_DETECTED;
+        last_time = millis();
+        break;
+      }
+      else if (Vision.target_flag != 0){
         Mode = Mode::TENNIS_DETECTED;
       }
       Line_tracking();
@@ -1163,24 +1164,25 @@ void Mode_switch(){
       else if (Vision.catch_flag == 1){
         Mode = Mode::CATCHING;
       }
-      Gimbal_motor_control();
+      Gimbal_motor_control(); 
+      Vision_tracking();
       break;
-    case Mode::CATCHING:
-      if (Catched_flag){
-        Mode = Mode::CATCHED;
-      }
-      Arm_control();
-      Move(0.0, 0.0, 0.0);
-      Gimbal_motor_control();
-      break;
-    case Mode::CATCHED:
-      if (!Catched_flag){
-        Mode = Mode::NORMAL;
-      }
-      Line_tracking();
-      Arm_control();
-      Gimbal_motor_control();
-      break;
+    // case Mode::CATCHING:
+    //   if (Catched_flag){
+    //     Mode = Mode::CATCHED;
+    //   }
+    //   Arm_control();
+    //   Move(0.0, 0.0, 0.0);
+    //   Gimbal_motor_control();
+    //   break;
+    // case Mode::CATCHED:
+    //   if (!Catched_flag){
+    //     Mode = Mode::NORMAL;
+    //   }
+    //   Line_tracking();
+    //   Arm_control();
+    //   Gimbal_motor_control();
+    //   break;
     default:
       break;
   }
@@ -1293,6 +1295,8 @@ void debug(){
   // delay(1000);
   // ArmServo1.write(60); // claw open, put down tennis ball
   // delay(1000);
+
+  Serial.println(Chassis_control.wifi_cmd);
 }
 
 void Wifi_control(){
@@ -1321,7 +1325,24 @@ void Wifi_control(){
     }
     // SERVO ARM
     else if (Chassis_control.wifi_cmd == "CATCH"){
-      Arm_control();
+      ArmServo2.write(145); // arm down a bit
+      delay(1000);
+      ArmServo1.write(60); // claw open
+      delay(1000);
+      ArmServo2.write(100); // tilt arm down a bit, middle stage
+      delay(1000);
+      ArmServo2.write(55); // arm down
+      delay(1000);
+      ArmServo1.write(95); // claw close
+      delay(1000);
+      ArmServo2.write(100); // arm middle
+      delay(1000);
+      ArmServo2.write(145); // arm up
+      delay(1000);
+      ArmServo2.write(180);
+      delay(1000);
+      ArmServo1.write(60); // claw open, put down tennis ball
+      delay(1000);
     }
     // SPEED
     else if (Chassis_control.wifi_cmd == "V1"){
@@ -1335,19 +1356,19 @@ void Wifi_control(){
     }
     // GIMBAL
     else if (Chassis_control.wifi_cmd == "P+"){
-      Gimbal_control.pitch += 5;
+      Gimbal_control.pitch -= 10;
       PitchServo.write(Gimbal_control.pitch);
     }
     else if (Chassis_control.wifi_cmd == "P-"){
-      Gimbal_control.pitch -= 5;
+      Gimbal_control.pitch += 10;
       PitchServo.write(Gimbal_control.pitch);
     }
     else if (Chassis_control.wifi_cmd == "Y-"){
-      Gimbal_control.yaw -= 5;
+      Gimbal_control.yaw -= 10;
       YawServo.write(Gimbal_control.yaw);
     }
     else if (Chassis_control.wifi_cmd == "Y+"){
-      Gimbal_control.yaw += 5;
+      Gimbal_control.yaw += 10;
       YawServo.write(Gimbal_control.yaw);
     }
     else if (Chassis_control.wifi_cmd == "INIT"){
@@ -1356,56 +1377,54 @@ void Wifi_control(){
       PitchServo.write(Gimbal_control.pitch);
       YawServo.write(Gimbal_control.yaw);
     }
-    else if (Chassis_control.wifi_cmd == "M1"){ // obstacle avoidance && line tracking
-      if(WifiMode == WIFIMODE::M1){
-        WifiMode = WIFIMODE::NONE;
-        return;
-      }
-      else{
-        WifiMode = WIFIMODE::M1;
-      }
+    else if (Chassis_control.wifi_cmd == "M1" || WifiMode == WIFIMODE::M1){ // obstacle avoidance && line tracking
+      WifiMode = WIFIMODE::M1;
       Obstacle_avoidance();
       if (!Obstacle_flag && retrieve_flag == 0){
         Line_tracking();
         Gimbal_motor_control();
       }
     }
-    else if (Chassis_control.wifi_cmd == "M2"){ //line tracking
-      if(WifiMode == WIFIMODE::M2){
-        WifiMode = WIFIMODE::NONE;
-        return;
-      }
-      else{
-        WifiMode = WIFIMODE::M2;
-      }
+    else if (Chassis_control.wifi_cmd == "M2" || WifiMode == WIFIMODE::M2){ //line tracking
+      WifiMode = WIFIMODE::M2;
       Line_tracking();
-      Gimbal_motor_control();
+      Gimbal_motor_control(); 
     }
-    else if (Chassis_control.wifi_cmd == "M3"){ // vision tracking
-      if(WifiMode == WIFIMODE::M3){
-        WifiMode = WIFIMODE::NONE;
-        return;
-      }
-      else{
-        WifiMode = WIFIMODE::M3;
-      }
+    else if (Chassis_control.wifi_cmd == "M3" || WifiMode == WIFIMODE::M3){ // vision tracking
+      WifiMode = WIFIMODE::M3;
       Gimbal_motor_control();
+      Vision_tracking();    
     }
-    else if (Chassis_control.wifi_cmd == "M4"){ // vision control arm
-      if(WifiMode == WIFIMODE::M4){
-        WifiMode = WIFIMODE::NONE;
-        return;
+    else if (Chassis_control.wifi_cmd == "M4" || WifiMode == WIFIMODE::M4){ // vision control arm
+      WifiMode = WIFIMODE::M4;
+      if (Vision.catch_flag == 1){
+        if (stop_cnt < 2000){
+          Move(0.0, 0.0, 0.0);
+          Chassis_Motor_control();
+          stop_cnt += 1;
+        }
+        else{
+          ArmServo2.write(145); // arm down a bit
+          delay(1000);
+          ArmServo2.write(100); // tilt arm down a bit, middle stage
+          delay(1000);
+          ArmServo2.write(55); // arm down
+          delay(1000);
+          ArmServo1.write(95); // claw close
+          delay(1000);
+          ArmServo2.write(100); // arm middle
+          delay(1000);
+          ArmServo2.write(145); // arm up
+          delay(1000);
+          ArmServo2.write(180);
+          delay(1000);
+          ArmServo1.write(60); // claw open, put down tennis ball
+          delay(1000);
+          ArmServo1.write(95); // claw close
+          stop_cnt = 0;
+        }
       }
-      else{
-        WifiMode = WIFIMODE::M4;
-      }
-      ArmServo1.write(60); // claw open
-      delay(1000);
-      ArmServo2.write(0); // arm down
-      delay(1000);
-      ArmServo1.write(95); // claw close
-      delay(1000);
-      ArmServo2.write(95); // arm up
+        
     }
     else{
       Move(0.0, 0.0, 0.0);
@@ -1417,18 +1436,18 @@ void loop()
   time = millis();
   Data_update();
 
-  // if (Mode == Mode::WIFI_MANUAL){
-  //   Wifi_control();
-  //   Chassis_Motor_control();
-  //   // Arm_control();
-  // }
-  // else{
-  //   Mode_switch();
-  //   Chassis_Motor_control();
-  //   Arm_control();
-  // }
+  if (Mode == Mode::WIFI_MANUAL){
+    Wifi_control();
+    Chassis_Motor_control();
+    // Arm_control();
+  }
+  else{
+    Mode_switch();
+    Chassis_Motor_control();
+    Arm_control();
+  }
   Chassis_Motor_control();
-  //debug
+
   debug();
 
   delay(1);
