@@ -44,6 +44,13 @@ enum class Mode {
   CATCHED // +Tennis ball catch, when tennis ball catched by arm
 } Mode;
 
+enum class WIFIMODE {
+  NONE,
+  M1,
+  M2,
+  M3,
+  M4  
+} WifiMode;
 
 //infrared sensors ||left:out-gnd-vcc:right||
 #define INFRARED1 25 //front left PA3
@@ -387,6 +394,7 @@ void setup(){
   //Mode Setup
   Mode = Mode::WIFI_MANUAL; // original mode == WIFI_MANUAL
   // Mode = Mode::NORMAL;
+  WifiMode = WIFIMODE::NONE;
   delay(1000);
 }
 
@@ -624,7 +632,7 @@ void Chassis_Vector_to_Mecanum_Wheel_Speed(double vx, double vy, double wz){
 // speed of motor 0-2.4 from pwm 0-255
 void Chassis_Motor_control(){
   
-  if (Mode == Mode::TENNIS_DETECTED){
+  if (Mode == Mode::TENNIS_DETECTED || WifiMode == WIFIMODE::M2){
     // if (Gimbal_control.target_flag == 1){
     //   Move(0.0, 0.0, 0.0);
     // }
@@ -647,6 +655,9 @@ void Chassis_Motor_control(){
         break;
 
     }
+  }
+  else if (Vision.catch_flag == 1){
+    Move(0.0, 0.0, 0.0);
   }
 
   Chassis_Vector_to_Mecanum_Wheel_Speed(Chassis_control.vx, Chassis_control.vy, Chassis_control.wz);
@@ -834,9 +845,9 @@ void Obstacle_avoidance(){
       Move(0.0, all_speed_set, 0.0);
       break;
   }
-  if (Chassis_control.vx != last_avoid_move_x || Chassis_control.vy != last_avoid_move_y || Chassis_control.wz != last_avoid_move_z){ 
-    shift_stop_time = millis();
-  }
+  // if (Chassis_control.vx != last_avoid_move_x || Chassis_control.vy != last_avoid_move_y || Chassis_control.wz != last_avoid_move_z){ 
+  //   shift_stop_time = millis();
+  // }
 
 }
 
@@ -911,7 +922,7 @@ void Line_tracking(){
       Move(0.0, all_speed_set, 0.0); // go straight
       break;
   }
-  if (Chassis_control.move_flag == 1 && Gimbal_control.scan_cnt < 4){
+  if (Chassis_control.move_flag == 1 && Gimbal_control.scan_cnt < 3){
     Move(0.0, 0.0, 0.0);
     return;
   }
@@ -921,10 +932,6 @@ void Line_tracking(){
   }
 
   Chassis_control.move_cnt += 1;
-}
-
-void Vision_tracking(){
-  // vision detect from camera
 }
 
 void Arm_control(){
@@ -963,9 +970,12 @@ void Arm_control(){
 }
 
 void Scanning(){
-  if (Gimbal_control.cnt % 400 == 0){
-    // Gimbal_control.yaw += 45;
+  if (Gimbal_control.cnt % 2000 == 0){
+    Gimbal_control.yaw += 45;
     Gimbal_control.yaw %= 180;
+    if (Gimbal_control.yaw == 0){
+      Gimbal_control.yaw = 45;
+    }
     YawServo.write(Gimbal_control.yaw);
     Gimbal_control.scan_cnt += 1;
     Gimbal_control.cnt = 0;
@@ -976,10 +986,10 @@ void Scanning(){
 
 void Gimbal_motor_control(){
   // servo control
-  if(Gimbal_control.scan_cnt < 4){
+  if(Gimbal_control.scan_cnt < 3){
     Scanning();
   }
-  else if (Gimbal_control.scan_cnt == 4){
+  else if (Gimbal_control.scan_cnt == 3){
     Gimbal_control.yaw = 90;
     YawServo.write(Gimbal_control.yaw);
     Gimbal_control.cnt = 0;
@@ -1054,18 +1064,17 @@ void Mode_switch(){
       if (Vision.target_flag == 0 && Vision.catch_flag == 0){
         // Mode = Mode::OBSTACLE_DETECTED;
       }
-      else if (Catching_flag){
+      else if (Vision.catch_flag == 1){
         Mode = Mode::CATCHING;
       }
-      Vision_tracking();
       Gimbal_motor_control();
       break;
     case Mode::CATCHING:
       if (Catched_flag){
         Mode = Mode::CATCHED;
       }
-      Vision_tracking();
       Arm_control();
+      Move(0.0, 0.0, 0.0);
       Gimbal_motor_control();
       break;
     case Mode::CATCHED:
@@ -1073,7 +1082,6 @@ void Mode_switch(){
         Mode = Mode::NORMAL;
       }
       Line_tracking();
-      Vision_tracking();
       Arm_control();
       Gimbal_motor_control();
       break;
@@ -1193,13 +1201,11 @@ void Wifi_control(){
     }
     else if (Chassis_control.wifi_cmd == "STOP"){
       Move(0.0, 0.0, 0.0);
+      WifiMode = WIFIMODE::NONE;
     }
     // SERVO ARM
     else if (Chassis_control.wifi_cmd == "CATCH"){
-      if (ArmServo1.read() == 95)
-        ArmServo1.write(60);
-      else
-        ArmServo1.write(95);
+      Arm_control();
     }
     // SPEED
     else if (Chassis_control.wifi_cmd == "V1"){
@@ -1234,6 +1240,57 @@ void Wifi_control(){
       PitchServo.write(Gimbal_control.pitch);
       YawServo.write(Gimbal_control.yaw);
     }
+    else if (Chassis_control.wifi_cmd == "M1"){ // obstacle avoidance && line tracking
+      if(WifiMode == WIFIMODE::M1){
+        WifiMode = WIFIMODE::NONE;
+        return;
+      }
+      else{
+        WifiMode = WIFIMODE::M1;
+      }
+      Obstacle_avoidance();
+      if (!Obstacle_flag && retrieve_flag == 0){
+        Line_tracking();
+        Gimbal_motor_control();
+      }
+    }
+    else if (Chassis_control.wifi_cmd == "M2"){ //line tracking
+      if(WifiMode == WIFIMODE::M2){
+        WifiMode = WIFIMODE::NONE;
+        return;
+      }
+      else{
+        WifiMode = WIFIMODE::M2;
+      }
+      Line_tracking();
+      Gimbal_motor_control();
+    }
+    else if (Chassis_control.wifi_cmd == "M3"){ // vision tracking
+      if(WifiMode == WIFIMODE::M3){
+        WifiMode = WIFIMODE::NONE;
+        return;
+      }
+      else{
+        WifiMode = WIFIMODE::M3;
+      }
+      Gimbal_motor_control();
+    }
+    else if (Chassis_control.wifi_cmd == "M4"){ // vision control arm
+      if(WifiMode == WIFIMODE::M4){
+        WifiMode = WIFIMODE::NONE;
+        return;
+      }
+      else{
+        WifiMode = WIFIMODE::M4;
+      }
+      ArmServo1.write(60); // claw open
+      delay(1000);
+      ArmServo2.write(0); // arm down
+      delay(1000);
+      ArmServo1.write(95); // claw close
+      delay(1000);
+      ArmServo2.write(95); // arm up
+    }
     else{
       Move(0.0, 0.0, 0.0);
     }
@@ -1246,7 +1303,7 @@ void loop()
   if (Mode == Mode::WIFI_MANUAL){
     Wifi_control();
     Chassis_Motor_control();
-    Arm_control();
+    // Arm_control();
   }
   else{
     Mode_switch();
