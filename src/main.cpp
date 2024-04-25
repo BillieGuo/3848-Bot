@@ -42,7 +42,7 @@ enum class Mode {
   TENNIS_DETECTED, // -obstacle avoidance, when tennis ball detected but not catched
   CATCHING, // +Tennis ball catch, -obstacle avoidance, -line tracking, when catching tennis ball
   CATCHED // +Tennis ball catch, when tennis ball catched by arm
-} Mode;
+} Mode, Last_Mode;
 
 enum class WIFIMODE {
   NONE,
@@ -465,7 +465,7 @@ void Infrared_states(){
   }
   if ((Infrared_combined & 0b0001) == 0b0000){ // front two sensors detect no obstacle
     front_cnt += 1;
-    if (front_cnt >= 200){
+    if (front_cnt >= 150){
       Front_flag = false;
     }
   }
@@ -493,19 +493,19 @@ void Grayscale_values(){
 
   Grayscale_combined = 0b00000;
 
-  if (Grayscale_right > 810) { // right most grayscale sensor detect white line, lowest digit = 1
+  if (Grayscale_right > 805) { // right most grayscale sensor detect white line, lowest digit = 1
     Grayscale_combined = Grayscale_combined | 0b00001;
   }
-  if (Grayscale_middle_right > 830) { // right second grayscale sensor detect white line, second lowest digit = 1
+  if (Grayscale_middle_right > 820) { // right second grayscale sensor detect white line, second lowest digit = 1
     Grayscale_combined = Grayscale_combined | 0b00010;
   }
   if (Grayscale_middle > 830) { // middle grayscale sensor detect white line, third lowest digit = 1
     Grayscale_combined = Grayscale_combined | 0b00100;
   }
-  if (Grayscale_middle_left > 820) { // left second grayscale sensor detect white line, fourth lowest digit = 1
+  if (Grayscale_middle_left > 830) { // left second grayscale sensor detect white line, fourth lowest digit = 1
     Grayscale_combined = Grayscale_combined | 0b01000;
   }
-  if (Grayscale_left > 820) { // left most grayscale sensor detect white line, highest digit = 1
+  if (Grayscale_left > 830) { // left most grayscale sensor detect white line, highest digit = 1
     Grayscale_combined = Grayscale_combined | 0b10000;
   }
 
@@ -610,7 +610,7 @@ void Chassis_Motor_control(){
   motorPID4.Compute();
   motor1.pwm = (motor1.speed_set*1.5 + pidout1) / 2.4 * 255;
   motor2.pwm = (motor2.speed_set*1.5 + pidout2) / 2.4 * 255;
-  motor3.pwm = (motor3.speed_set*1.08+ pidout3) / 2.4 * 255;
+  motor3.pwm = (motor3.speed_set*1.1+ pidout3) / 2.4 * 255;
   motor4.pwm = (motor4.speed_set + pidout4) / 2.4 * 255;
   CLIP(pwm1, -255, 255);
   CLIP(pwm2, -255, 255);
@@ -704,13 +704,14 @@ void Vision_recv(){
     // else {
     //   ArmServo1.write(60);
     // }
-  
+    Serial.println(vision_message);
     Serial.flush();
     vision_message = "";
   }
 }
 
 void Data_update() {
+  // Last_Mode = Mode;
   // Motor
   eps1 = motor1.ecd - motor1.last_ecd;
   eps2 = motor2.ecd - motor2.last_ecd;
@@ -1159,10 +1160,10 @@ void Mode_switch(){
       break;
     case Mode::TENNIS_DETECTED:
       if (Vision.target_flag == 0 && Vision.catch_flag == 0){
-        // Mode = Mode::OBSTACLE_DETECTED;
+        Mode = Mode::OBSTACLE_DETECTED;
       }
       else if (Vision.catch_flag == 1){
-        Mode = Mode::CATCHING;
+        Mode = Mode::NORMAL;
       }
       Gimbal_motor_control(); 
       Vision_tracking();
@@ -1241,6 +1242,8 @@ void debug(){
   // Serial.println(Infrared_right);
   // Serial.print("Infrared_back: ");
   // Serial.println(Infrared_back);
+  // Serial.print("retrieve_flag: ");
+  // Serial.println(retrieve_flag);
 
   // gray scale
   // Serial.print("Grayscale_left: ");
@@ -1296,7 +1299,7 @@ void debug(){
   // ArmServo1.write(60); // claw open, put down tennis ball
   // delay(1000);
 
-  Serial.println(Chassis_control.wifi_cmd);
+  // Serial.println(Chassis_control.wifi_cmd);
 }
 
 void Wifi_control(){
